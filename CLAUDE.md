@@ -181,6 +181,6 @@ Needs my explicit go-ahead, every time:
 # Verification commands
 
 - Tests: `make test` (fully offline; established as the canonical command in milestone 1)
-- Lint/typecheck: established with the stack ADR in milestone 1 and recorded here when it lands
+- Lint/typecheck: none beyond the `python3 -m compileall` syntax pass inside `make test`; no third-party linter per ADR-0001 (stdlib-only)
 - Run locally: `make run` (scheduler plus status page)
 - OKF stale map: `bash scripts/okf check-stale`

@@ -8,9 +8,18 @@
 # `*` as an alias marker.
 
 mappings:
-  # Add one entry per source area after installing this kit in a real repo.
-  #
-  # - source: "path/to/module/**"
-  #   docs:
-  #     - "docs/specs/module.md"
-  #     - "docs/adr/0001-module-decision.md"
+  - source: "skywatch/config.py"
+    docs:
+      - "docs/specs/config.md"
+
+  - source: "skywatch/**"
+    docs:
+      - "docs/adr/0001-python-stdlib-stack.md"
+
+  - source: "tests/**"
+    docs:
+      - "docs/adr/0001-python-stdlib-stack.md"
+
+  - source: "Makefile"
+    docs:
+      - "docs/adr/0001-python-stdlib-stack.md"
