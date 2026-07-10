@@ -1,0 +1,16 @@
+# Destination in your repo: docs/okf-map.yml
+#
+# Map source areas to the specs and ADRs that govern them. The `scripts/okf
+# check-stale` command uses this file to catch cases where source changed but
+# the mapped knowledge file was not touched.
+#
+# Keep patterns repo-relative. Quote glob patterns so YAML readers do not treat
+# `*` as an alias marker.
+
+mappings:
+  # Add one entry per source area after installing this kit in a real repo.
+  #
+  # - source: "path/to/module/**"
+  #   docs:
+  #     - "docs/specs/module.md"
+  #     - "docs/adr/0001-module-decision.md"

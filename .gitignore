@@ -1,0 +1,7 @@
+.claude/settings.local.json
+CLAUDE.local.md
+.okf-kit-backups/
+.env
+.env.*
+!.env.example
+.DS_Store
