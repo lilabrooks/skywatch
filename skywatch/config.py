@@ -13,6 +13,7 @@ from typing import Mapping
 
 HOST = "127.0.0.1"  # loopback only; widening this reopens ADR-0001
 DEFAULT_PORT = 8000
+DEFAULT_DB_PATH = "skywatch.db"
 
 
 class ConfigError(Exception):
@@ -28,6 +29,7 @@ class Config:
     latitude: float
     longitude: float
     port: int
+    db_path: str = DEFAULT_DB_PATH
     host: str = HOST
 
 
@@ -77,13 +79,29 @@ def _parse_port(env: Mapping[str, str], name: str, errors: list[str]) -> int | N
     return value
 
 
+def _parse_db_path(env: Mapping[str, str], name: str, errors: list[str]) -> str:
+    import os.path
+
+    raw = _get(env, name)
+    if raw is None:
+        return DEFAULT_DB_PATH
+    parent = os.path.dirname(raw)
+    if parent and not os.path.isdir(parent):
+        errors.append(
+            f"{name}: directory {parent!r} does not exist — "
+            f"expected a writable path for the SQLite file (e.g. {DEFAULT_DB_PATH})"
+        )
+    return raw
+
+
 def load_config(env: Mapping[str, str]) -> Config:
     """Parse and validate configuration, raising ConfigError with all problems."""
     errors: list[str] = []
     latitude = _parse_float(env, "LATITUDE", -90, 90, "47.61", errors)
     longitude = _parse_float(env, "LONGITUDE", -180, 180, "-122.33", errors)
     port = _parse_port(env, "PORT", errors)
+    db_path = _parse_db_path(env, "DB_PATH", errors)
     if errors:
         raise ConfigError(errors)
     assert latitude is not None and longitude is not None and port is not None
-    return Config(latitude=latitude, longitude=longitude, port=port)
+    return Config(latitude=latitude, longitude=longitude, port=port, db_path=db_path)

@@ -23,11 +23,12 @@ counts as unset.
 
 Variables as of milestone 1 (later milestones extend this table):
 
-| Variable    | Required | Format                                            | Default |
-|-------------|----------|---------------------------------------------------|---------|
-| `LATITUDE`  | yes      | decimal degrees, −90 to 90 (north positive)       | —       |
-| `LONGITUDE` | yes      | decimal degrees, −180 to 180 (east positive)      | —       |
-| `PORT`      | no       | integer, 1 to 65535                               | `8000`  |
+| Variable    | Required | Format                                            | Default       |
+|-------------|----------|---------------------------------------------------|---------------|
+| `LATITUDE`  | yes      | decimal degrees, −90 to 90 (north positive)       | —             |
+| `LONGITUDE` | yes      | decimal degrees, −180 to 180 (east positive)      | —             |
+| `PORT`      | no       | integer, 1 to 65535                               | `8000`        |
+| `DB_PATH`   | no       | path for the SQLite file; parent dir must exist   | `skywatch.db` |
 
 - The server binds `127.0.0.1` only; the host is not configurable (ADR-0001).
 - Range checks reject `nan` and `inf`. Unknown environment variables are ignored.

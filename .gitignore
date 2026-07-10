@@ -8,3 +8,6 @@ CLAUDE.local.md
 __pycache__/
 *.py[co]
 .venv/
+*.db
+*.db-wal
+*.db-shm

@@ -6,20 +6,77 @@
 #
 # Keep patterns repo-relative. Quote glob patterns so YAML readers do not treat
 # `*` as an alias marker.
+#
+# Convention here: map each module (and its tests) to the spec that states its
+# contract; ADRs are mapped only from the files that embody the decision, so a
+# routine code change doesn't demand an ADR touch.
 
 mappings:
+  # Configuration contract
   - source: "skywatch/config.py"
     docs:
       - "docs/specs/config.md"
+  - source: "skywatch/__main__.py"
+    docs:
+      - "docs/specs/config.md"
+  - source: "tests/test_config.py"
+    docs:
+      - "docs/specs/config.md"
+  - source: "tests/test_startup.py"
+    docs:
+      - "docs/specs/config.md"
 
-  - source: "skywatch/**"
+  # Sources: fetch -> normalize -> store -> cycle
+  - source: "skywatch/fetch.py"
+    docs:
+      - "docs/specs/sources.md"
+      - "docs/adr/0002-pass-and-weather-sources.md"
+  - source: "skywatch/sources.py"
+    docs:
+      - "docs/specs/sources.md"
+      - "docs/adr/0002-pass-and-weather-sources.md"
+  - source: "skywatch/cycle.py"
+    docs:
+      - "docs/specs/sources.md"
+  - source: "skywatch/model.py"
+    docs:
+      - "docs/specs/sources.md"
+  - source: "skywatch/db.py"
+    docs:
+      - "docs/specs/sources.md"
+      - "docs/adr/0003-sqlite-persistence.md"
+  - source: "tests/fixtures/**"
+    docs:
+      - "docs/adr/0002-pass-and-weather-sources.md"
+  - source: "tests/test_fetch.py"
+    docs:
+      - "docs/specs/sources.md"
+  - source: "tests/test_sources.py"
+    docs:
+      - "docs/specs/sources.md"
+  - source: "tests/test_db.py"
+    docs:
+      - "docs/specs/sources.md"
+  - source: "tests/test_cycle.py"
+    docs:
+      - "docs/specs/sources.md"
+  - source: "tests/test_model.py"
+    docs:
+      - "docs/specs/sources.md"
+  - source: "tests/support.py"
+    docs:
+      - "docs/specs/sources.md"
+
+  # Stack decision (ADR-0001): the files that embody it
+  - source: "skywatch/server.py"
     docs:
       - "docs/adr/0001-python-stdlib-stack.md"
-
-  - source: "tests/**"
+  - source: "skywatch/__init__.py"
     docs:
       - "docs/adr/0001-python-stdlib-stack.md"
-
+  - source: "tests/test_server.py"
+    docs:
+      - "docs/adr/0001-python-stdlib-stack.md"
   - source: "Makefile"
     docs:
       - "docs/adr/0001-python-stdlib-stack.md"

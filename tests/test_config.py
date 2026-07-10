@@ -17,6 +17,19 @@ class LoadConfigTests(unittest.TestCase):
         config = load_config({**VALID, "PORT": "9100"})
         self.assertEqual(config.port, 9100)
 
+    def test_db_path_defaults(self):
+        self.assertEqual(load_config(VALID).db_path, "skywatch.db")
+
+    def test_db_path_override(self):
+        config = load_config({**VALID, "DB_PATH": "state.db"})
+        self.assertEqual(config.db_path, "state.db")
+
+    def test_db_path_missing_directory_rejected(self):
+        with self.assertRaises(ConfigError) as ctx:
+            load_config({**VALID, "DB_PATH": "/no/such/dir/skywatch.db"})
+        self.assertIn("DB_PATH", str(ctx.exception))
+        self.assertIn("does not exist", str(ctx.exception))
+
     def test_extra_variables_ignored(self):
         config = load_config({**VALID, "SHELL": "/bin/zsh", "HOME": "/Users/x"})
         self.assertEqual(config.latitude, 47.61)

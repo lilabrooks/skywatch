@@ -6,6 +6,7 @@ import logging
 import os
 import sys
 
+from skywatch import db
 from skywatch.config import ConfigError, load_config
 from skywatch.server import make_server
 
@@ -23,6 +24,11 @@ def main() -> int:
     except ConfigError as err:
         print(f"skywatch: configuration error\n{err}", file=sys.stderr)
         return 2
+
+    connection = db.connect(config.db_path)
+    schema_version = connection.execute("PRAGMA user_version").fetchone()[0]
+    connection.close()
+    log.info("database ready at %s (schema v%d)", config.db_path, schema_version)
 
     server = make_server(config.host, config.port)
     host, port = server.server_address[:2]
