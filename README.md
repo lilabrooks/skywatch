@@ -83,9 +83,10 @@ exceeds `CLOUD_MAYBE_MAX` (70 %); **go** at or under `CLOUD_GO_MAX` (30 %);
 
 ## About this repo
 
-Skywatch was built on top of the **claude-okf-repo-kit** scaffold — an
-Objective-Knowledge-Framework workflow for Claude Code that keeps a goal, its
-milestones, behavior specs, and architecture decisions versioned alongside the
-code. The `docs/` tree, `CLAUDE.md`, the `scripts/okf` helper, and the
+Skywatch was built on top of the
+[claude-okf-repo-kit](https://github.com/lilabrooks/claude-okf-repo-kit)
+scaffold — an Objective-Knowledge-Framework workflow for Claude Code that keeps
+a goal, its milestones, behavior specs, and architecture decisions versioned
+alongside the code. The `docs/` tree, `CLAUDE.md`, the `scripts/okf` helper, and the
 guardrail hooks under `.claude/` all come from that kit; everything under
 `skywatch/` and `tests/` is the application built through its workflow.
