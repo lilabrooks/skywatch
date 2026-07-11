@@ -38,15 +38,18 @@ mappings:
   - source: "skywatch/cycle.py"
     docs:
       - "docs/specs/sources.md"
+      - "docs/specs/verdict-digest.md"
   - source: "skywatch/model.py"
     docs:
       - "docs/specs/sources.md"
   - source: "skywatch/db.py"
     docs:
       - "docs/specs/sources.md"
+      - "docs/specs/verdict-digest.md"
       - "docs/adr/0003-sqlite-persistence.md"
   - source: "tests/fixtures/**"
     docs:
+      - "docs/specs/sources.md"
       - "docs/adr/0002-pass-and-weather-sources.md"
   - source: "tests/test_fetch.py"
     docs:
@@ -60,12 +63,38 @@ mappings:
   - source: "tests/test_cycle.py"
     docs:
       - "docs/specs/sources.md"
+      - "docs/specs/verdict-digest.md"
   - source: "tests/test_model.py"
     docs:
       - "docs/specs/sources.md"
   - source: "tests/support.py"
     docs:
       - "docs/specs/sources.md"
+      - "docs/specs/verdict-digest.md"
+
+  # Verdict and digest
+  - source: "skywatch/verdict.py"
+    docs:
+      - "docs/specs/verdict-digest.md"
+  - source: "skywatch/digest.py"
+    docs:
+      - "docs/specs/verdict-digest.md"
+  - source: "skywatch/notify.py"
+    docs:
+      - "docs/specs/verdict-digest.md"
+      - "docs/adr/0004-smtp-digest-transport.md"
+  - source: "tests/test_verdict.py"
+    docs:
+      - "docs/specs/verdict-digest.md"
+  - source: "tests/test_digest.py"
+    docs:
+      - "docs/specs/verdict-digest.md"
+  - source: "tests/test_notify.py"
+    docs:
+      - "docs/specs/verdict-digest.md"
+  - source: "tests/smtp_capture.py"
+    docs:
+      - "docs/adr/0004-smtp-digest-transport.md"
 
   # Stack decision (ADR-0001): the files that embody it
   - source: "skywatch/server.py"

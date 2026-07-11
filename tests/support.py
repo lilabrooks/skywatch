@@ -5,6 +5,7 @@ from pathlib import Path
 
 from skywatch.config import Config
 from skywatch.model import Pass
+from skywatch.notify import NotifyError
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
@@ -18,6 +19,19 @@ def make_config(**overrides) -> Config:
     values = {"latitude": 47.61, "longitude": -122.33, "port": 8000, "db_path": ":memory:"}
     values.update(overrides)
     return Config(**values)
+
+
+class RecordingNotifier:
+    def __init__(self):
+        self.sent: list[tuple[str, str]] = []
+
+    def send(self, subject: str, body: str) -> None:
+        self.sent.append((subject, body))
+
+
+class FailingNotifier:
+    def send(self, subject: str, body: str) -> None:
+        raise NotifyError("SMTP send via 127.0.0.1:9 failed: simulated outage")
 
 
 def make_pass(**overrides) -> Pass:

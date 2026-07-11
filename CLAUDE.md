@@ -182,5 +182,5 @@ Needs my explicit go-ahead, every time:
 
 - Tests: `make test` (fully offline; established as the canonical command in milestone 1)
 - Lint/typecheck: none beyond the `python3 -m compileall` syntax pass inside `make test`; no third-party linter per ADR-0001 (stdlib-only)
-- Run locally: `make run` (scheduler plus status page)
+- Run locally: `make run` (scheduler plus status page); `make cycle` (one fetch/verdict/digest cycle, then exit)
 - OKF stale map: `bash scripts/okf check-stale`

@@ -23,12 +23,28 @@ counts as unset.
 
 Variables as of milestone 1 (later milestones extend this table):
 
-| Variable    | Required | Format                                            | Default       |
-|-------------|----------|---------------------------------------------------|---------------|
-| `LATITUDE`  | yes      | decimal degrees, −90 to 90 (north positive)       | —             |
-| `LONGITUDE` | yes      | decimal degrees, −180 to 180 (east positive)      | —             |
-| `PORT`      | no       | integer, 1 to 65535                               | `8000`        |
-| `DB_PATH`   | no       | path for the SQLite file; parent dir must exist   | `skywatch.db` |
+| Variable            | Required | Format                                                   | Default              |
+|---------------------|----------|----------------------------------------------------------|----------------------|
+| `LATITUDE`          | yes      | decimal degrees, −90 to 90 (north positive)              | —                    |
+| `LONGITUDE`         | yes      | decimal degrees, −180 to 180 (east positive)             | —                    |
+| `PORT`              | no       | integer, 1 to 65535                                      | `8000`               |
+| `DB_PATH`           | no       | path for the SQLite file; parent dir must exist          | `skywatch.db`        |
+| `CLOUD_GO_MAX`      | no       | percentage, 0 to 100                                     | `30`                 |
+| `CLOUD_MAYBE_MAX`   | no       | percentage, 0 to 100; must be ≥ `CLOUD_GO_MAX`           | `70`                 |
+| `MIN_ELEVATION_DEG` | no       | degrees above the horizon, 0 to 90                       | `25`                 |
+| `SMTP_HOST`         | no*      | hostname/IP; unset ⇒ digest disabled                     | —                    |
+| `SMTP_PORT`         | no       | port, 1 to 65535                                         | `1025` (local sink)  |
+| `SMTP_TO`           | no*      | recipient address; required iff `SMTP_HOST` set          | —                    |
+| `SMTP_FROM`         | no       | sender address                                           | `skywatch@localhost` |
+| `SMTP_USER`         | no       | with `SMTP_PASSWORD` (both or neither)                   | —                    |
+| `SMTP_PASSWORD`     | no       | secret; env/`.env` only, excluded from config repr      | —                    |
+| `SMTP_STARTTLS`     | no       | yes/no (true/false, 1/0, on/off)                         | `no`                 |
+| `PASSES_BASE_URL`   | no       | http(s) URL — testing-only override of ADR-0002 upstream | real upstream        |
+| `FORECAST_BASE_URL` | no       | http(s) URL — testing-only override of ADR-0002 upstream | real upstream        |
+
+`*` `SMTP_HOST` and `SMTP_TO` are optional as a pair: setting either one
+requires the other; setting neither disables the digest (recorded per cycle as
+`skipped: SMTP not configured`).
 
 - The server binds `127.0.0.1` only; the host is not configurable (ADR-0001).
 - Range checks reject `nan` and `inf`. Unknown environment variables are ignored.

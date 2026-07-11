@@ -8,7 +8,7 @@ from skywatch.sources import (
     normalize_passes,
     passes_url,
 )
-from tests.support import load_fixture
+from tests.support import load_fixture, make_config
 
 
 class PassesNormalizationTests(unittest.TestCase):
@@ -56,10 +56,14 @@ class PassesNormalizationTests(unittest.TestCase):
             normalize_passes(broken)
 
     def test_url_contains_location(self):
-        url = passes_url(47.61, -122.33)
+        url = passes_url(make_config())
         self.assertIn("lat=47.61", url)
         self.assertIn("lon=-122.33", url)
         self.assertTrue(url.startswith("https://sat.terrestre.ar/passes/25544?"))
+
+    def test_url_base_overridable_for_local_fixtures(self):
+        config = make_config(passes_base_url="http://127.0.0.1:9999/passes.json")
+        self.assertTrue(passes_url(config).startswith("http://127.0.0.1:9999/passes.json?"))
 
 
 class ForecastNormalizationTests(unittest.TestCase):
@@ -96,7 +100,7 @@ class ForecastNormalizationTests(unittest.TestCase):
         self.assertEqual(normalize_forecast(payload)[0].cloud_cover_pct, 100)
 
     def test_url_requests_utc_hourly_cloud_cover(self):
-        url = forecast_url(47.61, -122.33)
+        url = forecast_url(make_config())
         self.assertIn("hourly=cloud_cover", url)
         self.assertIn("timezone=UTC", url)
         self.assertIn("latitude=47.61", url)

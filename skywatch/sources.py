@@ -10,16 +10,15 @@ from __future__ import annotations
 import urllib.parse
 from typing import Callable
 
+from skywatch.config import Config
 from skywatch.model import ForecastHour, Pass, compass_point, parse_utc, to_utc_z
 
 FetchJson = Callable[[str], object]
 
 PASSES_SOURCE = "sat.terrestre.ar"
-PASSES_BASE_URL = "https://sat.terrestre.ar/passes/25544"
 PASS_LIMIT = 10
 
 FORECAST_SOURCE = "open-meteo"
-FORECAST_BASE_URL = "https://api.open-meteo.com/v1/forecast"
 FORECAST_DAYS = 2
 
 
@@ -27,32 +26,32 @@ class SourceError(Exception):
     """The upstream answered, but not in the shape this contract expects."""
 
 
-def passes_url(latitude: float, longitude: float) -> str:
+def passes_url(config: Config) -> str:
     query = urllib.parse.urlencode(
-        {"lat": latitude, "lon": longitude, "limit": PASS_LIMIT}
+        {"lat": config.latitude, "lon": config.longitude, "limit": PASS_LIMIT}
     )
-    return f"{PASSES_BASE_URL}?{query}"
+    return f"{config.passes_base_url}?{query}"
 
 
-def forecast_url(latitude: float, longitude: float) -> str:
+def forecast_url(config: Config) -> str:
     query = urllib.parse.urlencode(
         {
-            "latitude": latitude,
-            "longitude": longitude,
+            "latitude": config.latitude,
+            "longitude": config.longitude,
             "hourly": "cloud_cover",
             "timezone": "UTC",
             "forecast_days": FORECAST_DAYS,
         }
     )
-    return f"{FORECAST_BASE_URL}?{query}"
+    return f"{config.forecast_base_url}?{query}"
 
 
-def fetch_passes(fetch_json: FetchJson, latitude: float, longitude: float) -> list[Pass]:
-    return normalize_passes(fetch_json(passes_url(latitude, longitude)))
+def fetch_passes(fetch_json: FetchJson, config: Config) -> list[Pass]:
+    return normalize_passes(fetch_json(passes_url(config)))
 
 
-def fetch_forecast(fetch_json: FetchJson, latitude: float, longitude: float) -> list[ForecastHour]:
-    return normalize_forecast(fetch_json(forecast_url(latitude, longitude)))
+def fetch_forecast(fetch_json: FetchJson, config: Config) -> list[ForecastHour]:
+    return normalize_forecast(fetch_json(forecast_url(config)))
 
 
 def normalize_passes(payload: object) -> list[Pass]:

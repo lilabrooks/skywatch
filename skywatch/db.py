@@ -7,9 +7,12 @@ tracked via PRAGMA user_version, and applied on every connect.
 from __future__ import annotations
 
 import sqlite3
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 from skywatch.model import ForecastHour, Pass
+
+if TYPE_CHECKING:
+    from skywatch.verdict import Verdict
 
 MIGRATIONS = [
     # 1: source tables and cycle audit (milestone 2)
@@ -45,6 +48,39 @@ MIGRATIONS = [
         finished_at_utc TEXT,
         passes_status TEXT NOT NULL DEFAULT 'pending',
         forecast_status TEXT NOT NULL DEFAULT 'pending'
+    );
+    """,
+    # 2: verdicts, digest dedup, and digest audit on cycles (milestone 3).
+    # Verdicts denormalize the pass fields because pass rows are replaced
+    # wholesale on each successful fetch (ADR-0003): no FKs into passes.
+    """
+    ALTER TABLE cycles ADD COLUMN digest_status TEXT NOT NULL DEFAULT '-';
+
+    CREATE TABLE verdicts (
+        id INTEGER PRIMARY KEY,
+        cycle_id INTEGER NOT NULL REFERENCES cycles (id),
+        pass_source TEXT NOT NULL,
+        start_utc TEXT NOT NULL,
+        culmination_utc TEXT NOT NULL,
+        end_utc TEXT NOT NULL,
+        max_elevation_deg REAL NOT NULL,
+        start_compass TEXT NOT NULL,
+        end_compass TEXT NOT NULL,
+        visible INTEGER NOT NULL,
+        verdict TEXT NOT NULL CHECK (verdict IN ('go', 'maybe', 'skip')),
+        reason TEXT NOT NULL,
+        cloud_cover_pct INTEGER,
+        created_at_utc TEXT NOT NULL
+    );
+    CREATE INDEX idx_verdicts_cycle ON verdicts (cycle_id);
+    CREATE INDEX idx_verdicts_start ON verdicts (start_utc);
+
+    CREATE TABLE digests (
+        id INTEGER PRIMARY KEY,
+        local_date TEXT NOT NULL UNIQUE,
+        sent_at_utc TEXT NOT NULL,
+        subject TEXT NOT NULL,
+        pass_count INTEGER NOT NULL
     );
     """,
 ]
@@ -119,6 +155,86 @@ def upsert_forecast_hours(
         )
 
 
+def future_passes(conn: sqlite3.Connection, now_utc: str) -> list[Pass]:
+    rows = conn.execute(
+        "SELECT * FROM passes WHERE start_utc >= ? ORDER BY start_utc", (now_utc,)
+    ).fetchall()
+    return [
+        Pass(
+            source=row["source"],
+            start_utc=row["start_utc"],
+            culmination_utc=row["culmination_utc"],
+            end_utc=row["end_utc"],
+            max_elevation_deg=row["max_elevation_deg"],
+            start_azimuth_deg=row["start_azimuth_deg"],
+            end_azimuth_deg=row["end_azimuth_deg"],
+            start_compass=row["start_compass"],
+            end_compass=row["end_compass"],
+            visible=bool(row["visible"]),
+        )
+        for row in rows
+    ]
+
+
+def forecast_map(conn: sqlite3.Connection) -> dict[str, int]:
+    return {
+        row["hour_utc"]: row["cloud_cover_pct"]
+        for row in conn.execute("SELECT hour_utc, cloud_cover_pct FROM forecast_hours")
+    }
+
+
+def insert_verdicts(
+    conn: sqlite3.Connection,
+    cycle_id: int,
+    verdicts: Iterable["Verdict"],
+    created_at_utc: str,
+) -> None:
+    with conn:
+        conn.executemany(
+            """
+            INSERT INTO verdicts (
+                cycle_id, pass_source, start_utc, culmination_utc, end_utc,
+                max_elevation_deg, start_compass, end_compass, visible,
+                verdict, reason, cloud_cover_pct, created_at_utc
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    cycle_id, v.pass_.source, v.pass_.start_utc,
+                    v.pass_.culmination_utc, v.pass_.end_utc,
+                    v.pass_.max_elevation_deg, v.pass_.start_compass,
+                    v.pass_.end_compass, int(v.pass_.visible),
+                    v.verdict, v.reason, v.cloud_cover_pct, created_at_utc,
+                )
+                for v in verdicts
+            ],
+        )
+
+
+def digest_already_sent(conn: sqlite3.Connection, local_date: str) -> bool:
+    row = conn.execute(
+        "SELECT 1 FROM digests WHERE local_date = ?", (local_date,)
+    ).fetchone()
+    return row is not None
+
+
+def record_digest(
+    conn: sqlite3.Connection,
+    local_date: str,
+    sent_at_utc: str,
+    subject: str,
+    pass_count: int,
+) -> None:
+    with conn:
+        conn.execute(
+            """
+            INSERT INTO digests (local_date, sent_at_utc, subject, pass_count)
+            VALUES (?, ?, ?, ?)
+            """,
+            (local_date, sent_at_utc, subject, pass_count),
+        )
+
+
 def start_cycle(conn: sqlite3.Connection, started_at_utc: str) -> int:
     with conn:
         cursor = conn.execute(
@@ -133,13 +249,15 @@ def finish_cycle(
     finished_at_utc: str,
     passes_status: str,
     forecast_status: str,
+    digest_status: str = "-",
 ) -> None:
     with conn:
         conn.execute(
             """
             UPDATE cycles
-            SET finished_at_utc = ?, passes_status = ?, forecast_status = ?
+            SET finished_at_utc = ?, passes_status = ?, forecast_status = ?,
+                digest_status = ?
             WHERE id = ?
             """,
-            (finished_at_utc, passes_status, forecast_status, cycle_id),
+            (finished_at_utc, passes_status, forecast_status, digest_status, cycle_id),
         )

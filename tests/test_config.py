@@ -5,7 +5,17 @@ from skywatch.config import DEFAULT_PORT, ConfigError, load_config
 VALID = {"LATITUDE": "47.61", "LONGITUDE": "-122.33"}
 
 
-class LoadConfigTests(unittest.TestCase):
+class ConfigAssertions(unittest.TestCase):
+    def assert_error(self, env, *fragments):
+        with self.assertRaises(ConfigError) as ctx:
+            load_config(env)
+        message = str(ctx.exception)
+        for fragment in fragments:
+            self.assertIn(fragment, message)
+        return message
+
+
+class LoadConfigTests(ConfigAssertions):
     def test_valid_minimal_env(self):
         config = load_config(VALID)
         self.assertEqual(config.latitude, 47.61)
@@ -33,14 +43,6 @@ class LoadConfigTests(unittest.TestCase):
     def test_extra_variables_ignored(self):
         config = load_config({**VALID, "SHELL": "/bin/zsh", "HOME": "/Users/x"})
         self.assertEqual(config.latitude, 47.61)
-
-    def assert_error(self, env, *fragments):
-        with self.assertRaises(ConfigError) as ctx:
-            load_config(env)
-        message = str(ctx.exception)
-        for fragment in fragments:
-            self.assertIn(fragment, message)
-        return message
 
     def test_garbage_latitude_names_variable_and_format(self):
         self.assert_error(
@@ -80,6 +82,129 @@ class LoadConfigTests(unittest.TestCase):
             {"LATITUDE": "banana", "PORT": "web"}, "LATITUDE", "LONGITUDE", "PORT"
         )
         self.assertEqual(len(message.strip().splitlines()), 3)
+
+
+class ThresholdConfigTests(ConfigAssertions):
+    def test_defaults(self):
+        config = load_config(VALID)
+        self.assertEqual(config.cloud_go_max, 30)
+        self.assertEqual(config.cloud_maybe_max, 70)
+        self.assertEqual(config.min_elevation_deg, 25.0)
+
+    def test_overrides(self):
+        config = load_config(
+            {**VALID, "CLOUD_GO_MAX": "20", "CLOUD_MAYBE_MAX": "80", "MIN_ELEVATION_DEG": "30"}
+        )
+        self.assertEqual(config.cloud_go_max, 20)
+        self.assertEqual(config.cloud_maybe_max, 80)
+        self.assertEqual(config.min_elevation_deg, 30.0)
+
+    def test_garbage_percentage_rejected(self):
+        self.assert_error({**VALID, "CLOUD_GO_MAX": "cloudy"}, "CLOUD_GO_MAX", "percentage")
+        self.assert_error({**VALID, "CLOUD_MAYBE_MAX": "110"}, "CLOUD_MAYBE_MAX", "out of range")
+
+    def test_garbage_elevation_rejected(self):
+        self.assert_error({**VALID, "MIN_ELEVATION_DEG": "high"}, "MIN_ELEVATION_DEG", "degrees")
+        self.assert_error({**VALID, "MIN_ELEVATION_DEG": "95"}, "MIN_ELEVATION_DEG", "out of range")
+
+    def test_maybe_threshold_must_not_undercut_go(self):
+        self.assert_error(
+            {**VALID, "CLOUD_GO_MAX": "50", "CLOUD_MAYBE_MAX": "20"},
+            "CLOUD_MAYBE_MAX",
+            ">= CLOUD_GO_MAX",
+        )
+
+
+class SmtpConfigTests(ConfigAssertions):
+    def test_unset_means_digest_disabled(self):
+        self.assertIsNone(load_config(VALID).smtp)
+
+    def test_minimal_smtp_with_defaults(self):
+        config = load_config(
+            {**VALID, "SMTP_HOST": "127.0.0.1", "SMTP_TO": "owner@example.org"}
+        )
+        smtp = config.smtp
+        self.assertIsNotNone(smtp)
+        self.assertEqual(smtp.host, "127.0.0.1")
+        self.assertEqual(smtp.port, 1025)
+        self.assertEqual(smtp.sender, "skywatch@localhost")
+        self.assertEqual(smtp.recipient, "owner@example.org")
+        self.assertIsNone(smtp.user)
+        self.assertFalse(smtp.starttls)
+
+    def test_full_smtp(self):
+        config = load_config(
+            {
+                **VALID,
+                "SMTP_HOST": "smtp.example.org",
+                "SMTP_PORT": "587",
+                "SMTP_TO": "owner@example.org",
+                "SMTP_FROM": "iss@example.org",
+                "SMTP_USER": "iss",
+                "SMTP_PASSWORD": "hunter2",
+                "SMTP_STARTTLS": "yes",
+            }
+        )
+        smtp = config.smtp
+        self.assertEqual(smtp.port, 587)
+        self.assertEqual(smtp.sender, "iss@example.org")
+        self.assertEqual(smtp.user, "iss")
+        self.assertTrue(smtp.starttls)
+
+    def test_password_never_in_repr(self):
+        config = load_config(
+            {
+                **VALID,
+                "SMTP_HOST": "smtp.example.org",
+                "SMTP_TO": "o@e.org",
+                "SMTP_USER": "iss",
+                "SMTP_PASSWORD": "hunter2",
+            }
+        )
+        self.assertNotIn("hunter2", repr(config))
+        self.assertNotIn("hunter2", repr(config.smtp))
+
+    def test_to_without_host_rejected(self):
+        self.assert_error({**VALID, "SMTP_TO": "o@e.org"}, "SMTP_HOST", "required when SMTP_TO")
+
+    def test_host_without_to_rejected(self):
+        self.assert_error({**VALID, "SMTP_HOST": "127.0.0.1"}, "SMTP_TO", "required when SMTP_HOST")
+
+    def test_user_without_password_rejected(self):
+        self.assert_error(
+            {**VALID, "SMTP_HOST": "h", "SMTP_TO": "o@e.org", "SMTP_USER": "iss"},
+            "SMTP_USER/SMTP_PASSWORD",
+        )
+
+    def test_source_base_urls_default_to_real_upstreams(self):
+        config = load_config(VALID)
+        self.assertTrue(config.passes_base_url.startswith("https://sat.terrestre.ar/"))
+        self.assertTrue(config.forecast_base_url.startswith("https://api.open-meteo.com/"))
+
+    def test_source_base_urls_overridable_for_fixture_servers(self):
+        config = load_config(
+            {
+                **VALID,
+                "PASSES_BASE_URL": "http://127.0.0.1:9999/passes.json",
+                "FORECAST_BASE_URL": "http://127.0.0.1:9999/forecast.json",
+            }
+        )
+        self.assertEqual(config.passes_base_url, "http://127.0.0.1:9999/passes.json")
+        self.assertEqual(config.forecast_base_url, "http://127.0.0.1:9999/forecast.json")
+
+    def test_non_http_base_url_rejected(self):
+        self.assert_error(
+            {**VALID, "PASSES_BASE_URL": "ftp://example.org/passes"},
+            "PASSES_BASE_URL",
+            "http(s)",
+        )
+
+    def test_garbage_starttls_rejected(self):
+        self.assert_error(
+            {**VALID, "SMTP_HOST": "h", "SMTP_TO": "o@e.org", "SMTP_STARTTLS": "banana"},
+            "SMTP_STARTTLS",
+            "yes/no",
+        )
 
 
 if __name__ == "__main__":

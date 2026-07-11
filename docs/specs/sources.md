@@ -20,7 +20,11 @@ produces.
 (default timeout 10 s, `User-Agent: skywatch/<version>`). It returns parsed
 JSON or raises `FetchError` for: non-2xx status, unreachable host, timeout, or
 a non-JSON body. Callers inject a fake with the same signature in tests; no
-test may hit the network.
+test may hit the network. URL builders take the config: the base URLs default
+to the ADR-0002 upstreams and are overridable via `PASSES_BASE_URL` /
+`FORECAST_BASE_URL` strictly as a testing escape hatch (pointing a manual run
+at a local fixture server), never as a way to adopt a different upstream —
+that would be an ADR-0002 revision.
 
 **Sources and normalization.**
 
@@ -59,7 +63,10 @@ in rows come from it.
   200 JSON, HTTP 500, non-JSON body, timeout, connection refused.
 - `tests/test_sources.py`: recorded fixtures (`tests/fixtures/*.json`, captured
   live 2026-07-10) normalize to the exact expected rows; malformed shapes raise
-  `SourceError`.
+  `SourceError`. One derived fixture exists alongside the recorded ones:
+  `open_meteo_cloud_cover_clear.json` is the recorded forecast with every value
+  set to 5% (the digest go-case; the recorded forecast is genuinely overcast
+  during every visible pass).
 - `tests/test_db.py`: migrations reach `user_version = len(MIGRATIONS)` in WAL
   mode; replace-from-now keeps history and swaps the future; forecast upsert
   keeps one row per hour.
