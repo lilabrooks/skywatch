@@ -102,4 +102,6 @@ scaffold — an Objective-Knowledge-Framework workflow for Claude Code that keep
 a goal, its milestones, behavior specs, and architecture decisions versioned
 alongside the code. The `docs/` tree, `CLAUDE.md`, the `scripts/okf` helper, and the
 guardrail hooks under `.claude/` all come from that kit; everything under
-`skywatch/` and `tests/` is the application built through its workflow.
+`skywatch/` and `tests/` is the application built through its workflow. Skywatch
+was built primarily with Claude Code; Codex assisted with CI, dependency
+automation, and repository metadata.

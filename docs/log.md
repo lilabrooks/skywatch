@@ -2,6 +2,8 @@
 
 ## 2026-07-11
 
+- README: clarified AI-tool attribution in the existing provenance section: Skywatch was built primarily with Claude Code, while Codex assisted with CI, dependency automation, and repository metadata. Documentation only; no product behavior or governed contract changed.
+
 - Added GitHub Actions CI for pull requests and `main`: the offline suite runs on Python 3.12, 3.13, and 3.14, while a separate job checks OKF mappings against the event's base commit. The workflow has read-only repository permission. README badges now report CI status, supported Python, standard-library-only dependencies, MIT licensing, Claude Code provenance, OKF 0.1, and the included specs/ADRs. The owner accepted **ADR-0005**, which records the CI topology and official action dependencies; no application behavior or existing governed contract changed.
 
 - Added `LICENSE` with the standard MIT license text for the repo owner. No product behavior or governed contract changed.
