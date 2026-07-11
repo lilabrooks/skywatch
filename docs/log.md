@@ -2,7 +2,7 @@
 
 ## 2026-07-11
 
-- No-doc-change rationale for the untracked `.codex/` hooks and `AGENTS.md` sitting in the working tree: they are owner-added Codex CLI agent config (mirroring the `.claude` hooks), not Skywatch behavior — no spec or ADR governs them and none changed. If the owner commits them, they should get okf-map entries (and possibly a short ADR on multi-agent tooling) at that point.
+- Owner decision: commit the Codex CLI agent config. `.codex/` (hooks.json + hook scripts byte-identical to the `.claude` ones) and `AGENTS.md` are now tracked. Both copies of `check-docs-sync.sh` gained `.codex/` and `AGENTS.md` in the agent-config exclusion group — the same treatment `.claude/`/`CLAUDE.md` already get — because untracked agent config was re-triggering the Stop hook every turn (its diff-vs-HEAD design means committed rationales re-arm it). No okf-map entries: nothing governs agent config, same as `.claude/`. Known warts, committed as-is per the owner: `AGENTS.md` is a stale install-time snapshot (still says "no application code yet"), and `.codex/hooks.json` hardcodes absolute machine paths.
 
 - Demo ergonomics: `make demo` (scripts/demo_digest.py) now honors `SMTP_PORT` and `SMTP_TO` from the environment, with CLI flags still winning and a clear exit-2 message on a garbage `SMTP_PORT`; the sink host stays hardcoded to 127.0.0.1 so the demo can never send off-machine. README's port-collision note now offers the move-ports alternative (`mailpit --smtp 127.0.0.1:2525` + `SMTP_PORT=2525 make demo`). Verified live through make on port 2525; 3 new tests (env respected, flags beat env, garbage rejected), 154 green. Staleness rationale for scripts/demo_digest.py → ADR-0004: tooling ergonomics only, the transport decision and its gating are unchanged.
 
