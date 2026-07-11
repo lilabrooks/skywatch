@@ -47,6 +47,10 @@ has clear-sky visible passes and runs one real cycle against them — the full
 SMTP path, deterministic regardless of actual weather. No Mailpit? The repo
 sink works too: `python3 -m tests.smtp_capture 1025` (prints captured mail).
 
+Only one sink can own port 1025 at a time: if `mailpit` reports
+`bind: address already in use`, another inbox (an earlier mailpit, the repo
+sink) is still running — find it with `lsof -nP -iTCP:1025` and stop it.
+
 With real data (`make run` / `make cycle` and `SMTP_TO` set in `.env`), you
 get at most one email per day, only when the next 24 h hold a go/maybe pass.
 Sending real mail is deliberate: point `SMTP_HOST`/`SMTP_PORT` at a real
