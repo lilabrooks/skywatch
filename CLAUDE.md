@@ -10,7 +10,7 @@ deciders: [Lila Brooks]
 
 # Master objective
 
-Current state: Freshly installed OKF workflow repo; no application code yet. Skywatch is being built here: a local always-on service that emails a digest when tonight's ISS pass is worth stepping outside for.
+Current state: v1 is built and the goal was met on 2026-07-11 — scheduler, both upstream sources, verdict join, SMTP digest, status page, and a clean-checkout README quickstart, all verified (see `docs/log.md`). ADRs 0001–0004 are `status: proposed`, awaiting owner review; new milestones enter `docs/GOAL.md` only by owner decision. Skywatch: a local always-on service that emails a digest when tonight's ISS pass is worth stepping outside for.
 
 Target state: A scheduler fetching ISS passes and cloud cover for a configured location into SQLite, joining them into go/maybe/skip verdicts, serving a local status page, and sending an SMTP digest only when tonight has a watchable pass — all testable fully offline.
 
@@ -93,6 +93,7 @@ Every new spec or ADR file gets YAML frontmatter with at least a `type:` field (
 - `docs/okf-map.yml` — source-to-knowledge mapping used by `scripts/okf check-stale`. Committed.
 - `.claude/settings.local.json` — personal overrides only. Never commit it.
 - `CLAUDE.local.md` — personal per-repo memory. Never commit it.
+- `.codex/` and `AGENTS.md` — the same workflow for the Codex CLI (committed 2026-07-11). The hook scripts under `.codex/hooks/` are byte-identical mirrors of the `.claude` ones: when one copy changes, sync the other, and keep the two playbooks (`CLAUDE.md`/`AGENTS.md`) telling the same story.
 
 During bootstrap, ensure `.gitignore` contains these entries (the same set the installers append and `verify-install` requires — `!.env.example` keeps the sample env file trackable):
 

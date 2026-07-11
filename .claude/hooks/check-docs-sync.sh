@@ -7,7 +7,7 @@
 # scripts/okf is installed, it then checks whether the touched source areas have
 # matching mapped docs or a log.md rationale. No infinite loop.
 
-ROOT="${CLAUDE_PROJECT_DIR:-.}"
+ROOT="${CLAUDE_PROJECT_DIR:-${CODEX_PROJECT_DIR:-.}}"
 
 changed=$( { git -C "$ROOT" diff --name-only HEAD; git -C "$ROOT" ls-files --others --exclude-standard; } 2>/dev/null | sort -u )
 

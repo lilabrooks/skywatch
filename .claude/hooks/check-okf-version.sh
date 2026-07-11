@@ -12,7 +12,7 @@
 
 SPEC_URL="https://raw.githubusercontent.com/GoogleCloudPlatform/knowledge-catalog/main/okf/SPEC.md"
 KIT_VERSION_URL="https://raw.githubusercontent.com/lilabrooks/claude-okf-repo-kit/main/VERSION"
-ROOT="${CLAUDE_PROJECT_DIR:-.}"
+ROOT="${CLAUDE_PROJECT_DIR:-${CODEX_PROJECT_DIR:-.}}"
 
 notes=""
 

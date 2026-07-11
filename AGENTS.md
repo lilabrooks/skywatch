@@ -3,14 +3,14 @@ type: Playbook
 title: Codex repo instructions
 description: Master objective, grounding rules, and workflow for Codex in this repository.
 tags: [Codex, agent-instructions, adr, specs]
-timestamp: 2026-07-09T00:00:00Z
+timestamp: 2026-07-11T00:00:00Z
 owner: Lila Brooks
 deciders: [Lila Brooks]
 ---
 
 # Master objective
 
-Current state: Freshly installed OKF workflow repo; no application code yet. Skywatch is being built here: a local always-on service that emails a digest when tonight's ISS pass is worth stepping outside for.
+Current state: v1 is built and the goal was met on 2026-07-11 — scheduler, both upstream sources, verdict join, SMTP digest, status page, and a clean-checkout README quickstart, all verified (see `docs/log.md`). ADRs 0001–0004 are `status: proposed`, awaiting owner review; new milestones enter `docs/GOAL.md` only by owner decision. Skywatch: a local always-on service that emails a digest when tonight's ISS pass is worth stepping outside for.
 
 Target state: A scheduler fetching ISS passes and cloud cover for a configured location into SQLite, joining them into go/maybe/skip verdicts, serving a local status page, and sending an SMTP digest only when tonight has a watchable pass — all testable fully offline.
 
@@ -18,19 +18,19 @@ Constraints: Follow `docs/GOAL.md`, the specs in `docs/specs/` as they land, and
 
 Done when: `make test` passes offline, `make run` serves the status page locally, every milestone in `docs/GOAL.md` is checked with its verification, and `git check-ignore .env` succeeds.
 
-# Preloaded context
+# Session-start context
 
-These imports resolve when Codex loads this file, so the goal and the knowledge indexes are in context at session start without a read step. Keep the imported files small; full specs and ADRs stay on disk until a task needs them.
+Codex does not resolve `@` imports, so read these three small files at the start of every session — they carry the goal and the knowledge indexes. Full specs and ADRs stay on disk until a task needs them.
 
-@docs/GOAL.md
-@docs/specs/index.md
-@docs/adr/index.md
+- `docs/GOAL.md`
+- `docs/specs/index.md`
+- `docs/adr/index.md`
 
 # Goal iteration
 
 `docs/GOAL.md` defines what this repo is for: the kind of deliverable (app, service, or utility), the problem, the target state, success criteria, and an ordered milestone backlog. The Master objective above is its one-screen summary; keep the two consistent, with `docs/GOAL.md` carrying the detail.
 
-- `docs/GOAL.md` is preloaded by the import above, so the goal is in context from the first task. Re-read it during a session only after it changes.
+- `docs/GOAL.md` is part of the session-start reads above, so the goal is in context from the first task. Re-read it during a session only after it changes.
 - When asked to continue or iterate without a specific task, take the first unchecked milestone and run it through the task workflow below. When its verification passes, check it off, log it, and continue with the next unchecked milestone. Stop when the backlog is empty, a decision reserved for me comes up, or I say stop.
 - Resuming after an interruption: at session start, if the working tree holds uncommitted changes, treat them as in-flight work from a cut-off session, not a clean slate. Reconcile them against the first unchecked milestone and the newest `docs/log.md` entry, then finish that work or back it out before taking a new milestone.
 - Check a milestone off only when its stated verification passes, then add a dated `docs/log.md` entry.
@@ -55,7 +55,7 @@ Push back on answers that can't be checked mechanically — "migrate the API to 
 
 # Docs bootstrap
 
-If `/docs/specs` or `/docs/adr` doesn't exist yet, create this structure before the first task. Until these files exist, the Preloaded context imports above won't resolve; creating the structure fixes that from the next session on:
+If `/docs/specs` or `/docs/adr` doesn't exist yet, create this structure before the first task; the session-start reads above depend on it:
 
 Installer note: when setting up a repo from outside Codex, prefer `bash scripts/create-new-repo <target>` for empty repos or `bash scripts/update-existing-repo <target>` for existing repos. This bootstrap section is the in-session fallback when those scripts were not used.
 
@@ -86,19 +86,18 @@ Every new spec or ADR file gets YAML frontmatter with at least a `type:` field (
 
 # Agent config (committed to the repo)
 
-- `.Codex/settings.json` — shared project settings: the guardrail hooks plus permission rules that deny reading local `.env` files. Committed.
-- `.Codex/hooks/check-docs-sync.sh` — Stop hook, invoked via `bash` so no executable bit is needed. Committed. Don't move, rename, or disable it; if it blocks a stop, do the doc update it asks for.
-- `.Codex/hooks/check-okf-version.sh` — SessionStart hook, invoked via `bash`. Committed. Reports OKF spec version drift; act per the OKF version policy above.
+- `.codex/hooks.json` — wires the guardrail hooks for Codex: `check-okf-version.sh` at SessionStart, `check-docs-sync.sh` at Stop, both invoked via `bash` so no executable bit is needed. Committed.
+- `.codex/hooks/check-docs-sync.sh` — Stop hook. Committed. Don't move, rename, or disable it; if it blocks a stop, do the doc update it asks for. Kept byte-identical to `.claude/hooks/check-docs-sync.sh`: when one copy changes, sync the other.
+- `.codex/hooks/check-okf-version.sh` — SessionStart hook. Committed. Reports OKF spec version drift; act per the OKF version policy above. Kept byte-identical to the `.claude` copy.
 - `scripts/okf` — repo-local OKF helper command. Committed. Use it for stale mapping checks, spec drafts, and ADR suggestions.
 - `docs/okf-map.yml` — source-to-knowledge mapping used by `scripts/okf check-stale`. Committed.
-- `.Codex/settings.local.json` — personal overrides only. Never commit it.
-- `Codex.local.md` — personal per-repo memory. Never commit it.
+- This repo is also worked on by Claude Code (`CLAUDE.md`, `.claude/`). The two playbooks describe the same workflow; when workflow text changes in one, mirror it in the other.
 
 During bootstrap, ensure `.gitignore` contains these entries (the same set the installers append and `verify-install` requires — `!.env.example` keeps the sample env file trackable):
 
 ```
-.Codex/settings.local.json
-Codex.local.md
+.claude/settings.local.json
+CLAUDE.local.md
 .okf-kit-backups/
 .env
 .env.*
@@ -107,7 +106,7 @@ Codex.local.md
 
 When the stack is chosen (typically the first milestone), also append its standard ignores — virtualenv or dependency directories, build output, caches, bytecode — before those files first appear in the working tree.
 
-Everything else agent-related is committed: `AGENTS.md`, `.Codex/settings.json`, `.Codex/hooks/`, `scripts/okf`, and all of `/docs`.
+Everything else agent-related is committed: `AGENTS.md`, `CLAUDE.md`, `.claude/`, `.codex/`, `scripts/okf`, and all of `/docs`.
 
 # OKF version policy
 
@@ -121,7 +120,7 @@ Never modify spec or ADR content as part of a version migration; only formatting
 
 # Kit version policy
 
-The same SessionStart hook also compares `kit_version` in `docs/index.md` — stamped by the kit installers — against the kit's published `VERSION` on the source kit's main branch. When it reports drift, tell me and recommend re-running `scripts/update-existing-repo` from an up-to-date clone of the kit. The updater never overwrites: it backs up the scripts it replaces and writes numbered candidates (such as `Codex.2.md`) for changed templates; reviewing and merging candidates is my decision. If `docs/index.md` carries no `kit_version`, the hook stays silent and this policy is inactive.
+The same SessionStart hook also compares `kit_version` in `docs/index.md` — stamped by the kit installers — against the kit's published `VERSION` on the source kit's main branch. When it reports drift, tell me and recommend re-running `scripts/update-existing-repo` from an up-to-date clone of the kit. The updater never overwrites: it backs up the scripts it replaces and writes numbered candidates for changed templates; reviewing and merging candidates is my decision. If `docs/index.md` carries no `kit_version`, the hook stays silent and this policy is inactive.
 
 # OKF helper commands
 
@@ -162,7 +161,7 @@ Security:
 
 - Never write secrets — API keys, tokens, passwords, private keys, connection strings — into tracked files. Read them from the environment, and before creating an env or credentials file, confirm `.gitignore` covers it.
 - Document required and optional environment variables in a committed `.env.example` holding placeholder values only; real values live in the git-ignored `.env`. The installers ignore `.env` and `.env.*` while keeping `.env.example` trackable.
-- The shipped settings deny reading `.env` files so secrets stay out of conversation context. Never remove, weaken, or work around that denial; if a task seems to require reading `.env`, stop and ask me.
+- The Claude Code settings in this repo deny reading `.env` files so secrets stay out of agent context; honor the same rule here even though Codex has no mechanical enforcement — never read `.env` into context. If a task seems to require reading `.env`, stop and ask me.
 - Treat changes touching auth, sessions, input parsing, file paths, network exposure, crypto, or permissions as security-sensitive: validate input at trust boundaries, use parameterized queries, grant least privilege, and run `bash scripts/okf adr-suggest`; when it flags the change, record the decision as a proposed ADR.
 - New runtime dependencies are decision-shaped: the proposed ADR names the alternatives considered and the maintenance and security tradeoff.
 
