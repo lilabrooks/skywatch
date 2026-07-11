@@ -2,6 +2,10 @@
 
 ## 2026-07-11
 
+- Added GitHub Actions CI for pull requests and `main`: the offline suite runs on Python 3.12, 3.13, and 3.14, while a separate job checks OKF mappings against the event's base commit. The workflow has read-only repository permission. README badges now report CI status, supported Python, standard-library-only dependencies, MIT licensing, Claude Code provenance, OKF 0.1, and the included specs/ADRs. The owner accepted **ADR-0005**, which records the CI topology and official action dependencies; no application behavior or existing governed contract changed.
+
+- Added `LICENSE` with the standard MIT license text for the repo owner. No product behavior or governed contract changed.
+
 - README: added a port-1025 troubleshooting line to the digest section after the owner hit `bind: address already in use` starting Mailpit (cause: a leftover Mailpit from the milestone-3 verification session still held the port). No code or contract change — both documented sinks share 1025 and the note says how to find and stop the holder.
 
 - Robustness fix after a user report that `make run` said latitude/longitude were "not specified" even after `cp .env.example .env`. Could not reproduce on a clean GitHub clone (README steps work: cp creates `.env`, `make run` loads 13 values and serves). Root cause identified as a latent inconsistency: `apply_env_file` used `name not in environ`, so a variable **set to an empty string** in the shell (e.g. `export LATITUDE=`) counted as "present" and blocked the `.env` value, while every parser treats empty as unset — making `cp` look like a no-op. Fixed: the file now fills any variable that is absent *or* blank in the environment (a non-empty env value still wins). Also added a startup hint to `cp .env.example .env` when required config is missing and no env file was found. Config spec updated; 3 new tests (blank-shadow at unit and subprocess level, missing-file hint); 151 tests green. If the user's actual cause was instead a stale checkout, the report/commit points them to pull.

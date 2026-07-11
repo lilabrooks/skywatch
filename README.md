@@ -1,5 +1,14 @@
 # Skywatch
 
+[![Tests](https://github.com/lilabrooks/skywatch/actions/workflows/test.yml/badge.svg)](https://github.com/lilabrooks/skywatch/actions/workflows/test.yml)
+[![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)](#requirements)
+[![Standard library only](https://img.shields.io/badge/dependencies-standard_library_only-4C8CBF)](#requirements)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
+[![Claude Code](https://img.shields.io/badge/built%20with-Claude%20Code-5D3FD3)](CLAUDE.md)
+[![OKF](https://img.shields.io/badge/docs-OKF%200.1-blue)](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)
+[![Specs + ADRs](https://img.shields.io/badge/specs%20%2B%20ADRs-included-00AA77)](docs/)
+
 A local always-on service that emails you a digest when tonight's ISS pass is
 worth stepping outside for. It fetches pass predictions
 ([sat.terrestre.ar](https://sat.terrestre.ar)) and the hourly cloud-cover

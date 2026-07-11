@@ -142,3 +142,8 @@ mappings:
   - source: "Makefile"
     docs:
       - "docs/adr/0001-python-stdlib-stack.md"
+
+  # Continuous integration
+  - source: ".github/workflows/**"
+    docs:
+      - "docs/adr/0005-github-actions-ci.md"
