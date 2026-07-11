@@ -71,13 +71,16 @@ class Config:
 
 
 def apply_env_file(environ: MutableMapping[str, str], path: str) -> list[str]:
-    """Fill environ from a KEY=VALUE file for keys not already set.
+    """Fill environ from a KEY=VALUE file for keys not already set to a value.
 
-    The process environment always wins over file values, so
-    `PORT=9000 make run` overrides `.env` rather than being silently ignored.
-    Comments, blank lines, an optional `export ` prefix, and single/double
-    quotes around values are handled; a missing file is not an error.
-    Returns the names that were applied, for logging (never values — the file
+    A non-empty process-environment value always wins over the file, so
+    `PORT=9000 make run` overrides `.env`. But a variable that is *set to an
+    empty or whitespace-only string* counts as unset (matching the parsers
+    below), so the file value fills it — otherwise `export LATITUDE=` in the
+    shell would silently shadow a perfectly good `.env` and make `cp` look
+    like a no-op. Comments, blank lines, an optional `export ` prefix, and
+    single/double quotes around values are handled; a missing file is not an
+    error. Returns the names applied, for logging (never values — the file
     holds secrets).
     """
     try:
@@ -97,7 +100,8 @@ def apply_env_file(environ: MutableMapping[str, str], path: str) -> list[str]:
         value = value.strip()
         if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
             value = value[1:-1]
-        if name and name not in environ:
+        existing = environ.get(name)
+        if name and (existing is None or not existing.strip()):
             environ[name] = value
             applied.append(name)
     return applied

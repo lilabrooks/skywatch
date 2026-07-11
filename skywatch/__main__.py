@@ -89,17 +89,24 @@ def main(argv: list[str] | None = None) -> int:
         print(USAGE, file=sys.stderr)
         return 2
     env_file = os.environ.get("SKYWATCH_ENV_FILE", ".env")
+    env_file_present = bool(env_file) and os.path.isfile(env_file)
     if env_file:
         applied = apply_env_file(os.environ, env_file)
         if applied:
             log.info(
-                "loaded %d value(s) from %s (already-set environment wins)",
+                "loaded %d value(s) from %s (a non-empty environment value wins)",
                 len(applied), env_file,
             )
     try:
         config = load_config(os.environ)
     except ConfigError as err:
-        print(f"skywatch: configuration error\n{err}", file=sys.stderr)
+        hint = ""
+        if env_file and not env_file_present:
+            hint = (
+                f"\nhint: no {env_file} file found in {os.getcwd()} — "
+                f"create one first:  cp .env.example {env_file}"
+            )
+        print(f"skywatch: configuration error\n{err}{hint}", file=sys.stderr)
         return 2
     if args == ["cycle"]:
         return _cycle_once(config)

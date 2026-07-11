@@ -19,13 +19,16 @@ with a clear message naming the expected format, never a stack trace mid-cycle.
 Configuration comes from the process environment, backed by an env file: at
 startup the app fills in values from `.env` (path overridable via
 `SKYWATCH_ENV_FILE`; set it to an empty string to disable loading, which the
-test suite does for hermeticity) **for variables not already set** — the
-process environment always wins, so `PORT=9000 make run` overrides `.env`
-rather than being silently ignored. The file format is `KEY=VALUE` lines;
-comments, blanks, an optional `export ` prefix, and quoted values are
-accepted; a missing file is fine. Only the count of applied variables is
-logged, never values. A variable set to an empty or whitespace-only string
-counts as unset by the parsers below.
+test suite does for hermeticity) **for variables not already set to a
+non-empty value** — a real process-environment value always wins, so
+`PORT=9000 make run` overrides `.env` rather than being silently ignored. A
+variable set to an empty or whitespace-only string counts as unset everywhere,
+including here: the file value fills it, so `export LATITUDE=` in the shell
+does not shadow a good `.env`. The file format is `KEY=VALUE` lines; comments,
+blanks, an optional `export ` prefix, and quoted values are accepted; a
+missing file is fine. Only the count of applied variables is logged, never
+values. When required configuration is missing and no env file was found,
+startup adds a hint to `cp .env.example .env`.
 
 Variables as of milestone 1 (later milestones extend this table):
 

@@ -134,6 +134,16 @@ class ApplyEnvFileTests(unittest.TestCase):
         self.assertEqual(environ, {"LATITUDE": "kept", "LONGITUDE": "2"})
         self.assertEqual(applied, ["LONGITUDE"])
 
+    def test_blank_environ_value_does_not_shadow_the_file(self):
+        # `export LATITUDE=` in the shell must not defeat a good .env value.
+        environ, applied = self.apply(
+            "LATITUDE=47.61\nLONGITUDE=-122.33\n",
+            environ={"LATITUDE": "", "LONGITUDE": "   "},
+        )
+        self.assertEqual(environ["LATITUDE"], "47.61")
+        self.assertEqual(environ["LONGITUDE"], "-122.33")
+        self.assertEqual(sorted(applied), ["LATITUDE", "LONGITUDE"])
+
     def test_ignores_comments_blanks_and_junk(self):
         environ, applied = self.apply("# comment\n\nnot a pair\nPORT=9000\n")
         self.assertEqual(environ, {"PORT": "9000"})

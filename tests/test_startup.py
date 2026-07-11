@@ -108,6 +108,44 @@ class EnvFileTests(unittest.TestCase):
             self.assertNotIn("banana", stderr)
             self.assertIn("LATITUDE", stderr)  # reported missing, not garbage
 
+    def test_blank_environment_value_is_filled_from_env_file(self):
+        # Reproduces the reported symptom: LATITUDE exported empty in the shell,
+        # a valid .env copied from the example, yet startup said "not set".
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, ".env").write_text("LATITUDE=47.61\nLONGITUDE=-122.33\n")
+            port = free_port()
+            process = run_skywatch(
+                {
+                    "LATITUDE": "",  # shadowing empty value
+                    "SKYWATCH_ENV_FILE": ".env",
+                    "PORT": str(port),
+                    "DB_PATH": f"{tmp}/skywatch.db",
+                    "PASSES_BASE_URL": f"http://127.0.0.1:{free_port()}/p",
+                    "FORECAST_BASE_URL": f"http://127.0.0.1:{free_port()}/f",
+                },
+                cwd=tmp,
+            )
+            try:
+                serving = False
+                for _ in range(50):
+                    line = process.stderr.readline()
+                    if not line or f"serving on http://127.0.0.1:{port}" in line:
+                        serving = bool(line)
+                        break
+                self.assertTrue(serving, "blank env var must not block the .env value")
+            finally:
+                process.terminate()
+                process.communicate(timeout=10)
+
+    def test_missing_env_file_hint_points_at_the_sample(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            # No .env here, and none of the required vars in the environment.
+            process = run_skywatch({"SKYWATCH_ENV_FILE": ".env"}, cwd=tmp)
+            code, stderr = self.finish(process)
+            self.assertEqual(code, 2)
+            self.assertIn("cp .env.example .env", stderr)
+            self.assertIn("no .env file found", stderr)
+
 
 class PortInUseTests(unittest.TestCase):
     def test_taken_port_fails_fast_with_clear_message(self):
