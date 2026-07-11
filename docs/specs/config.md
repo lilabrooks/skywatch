@@ -65,6 +65,9 @@ requires the other; setting neither disables the digest (recorded per cycle as
   and the offending value when there was one. Example rejected input —
   `LATITUDE=banana` produces:
   `LATITUDE: expected decimal degrees between -90 and 90 (e.g. 47.61), got 'banana'`
+- The same fail-fast rule covers binding: a `PORT` already in use exits 2
+  with a message naming the port and suggesting a free one — never a
+  traceback — and before the boot cycle fires.
 - `.env.example` documents every variable with placeholder values only and must
   stay in step with this table.
 
@@ -74,6 +77,7 @@ requires the other; setting neither disables the digest (recorded per cycle as
   error collection, env-file loading rules) and `tests/test_startup.py`
   (subprocess exits 2 on garbage `LATITUDE` with the message above and no
   traceback; boots and serves `/healthz` on valid config; environment-beats-
-  file precedence at process level). Both run offline in `make test`.
+  file precedence at process level; taken `PORT` exits 2 with a clear
+  message). Both run offline in `make test`.
 - Manual: `LATITUDE=banana LONGITUDE=-122.33 make run` exits 2 with the
   message above.

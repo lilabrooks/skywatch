@@ -109,6 +109,29 @@ class EnvFileTests(unittest.TestCase):
             self.assertIn("LATITUDE", stderr)  # reported missing, not garbage
 
 
+class PortInUseTests(unittest.TestCase):
+    def test_taken_port_fails_fast_with_clear_message(self):
+        with socket.socket() as sock:
+            sock.bind(("127.0.0.1", 0))
+            sock.listen(1)
+            taken = sock.getsockname()[1]
+            with tempfile.TemporaryDirectory() as tmp:
+                process = run_skywatch(
+                    {
+                        "LATITUDE": "47.61",
+                        "LONGITUDE": "-122.33",
+                        "PORT": str(taken),
+                        "DB_PATH": f"{tmp}/skywatch.db",
+                    }
+                )
+                _, stderr = process.communicate(timeout=10)
+        self.assertEqual(process.returncode, 2)
+        self.assertIn("cannot bind", stderr)
+        self.assertIn(str(taken), stderr)
+        self.assertIn("PORT", stderr)
+        self.assertNotIn("Traceback", stderr)
+
+
 class StartupSuccessTests(unittest.TestCase):
     def test_boots_and_serves_healthz(self):
         port = free_port()

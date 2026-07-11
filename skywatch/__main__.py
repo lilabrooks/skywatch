@@ -33,8 +33,17 @@ def _serve(config: Config) -> int:
         log.info("quiet hours: no digests between %s and %s local", f"{start:%H:%M}", f"{end:%H:%M}")
 
     runner = CycleRunner(config, notifier=notifier)
+    try:
+        server = make_server(config, trigger=runner.run)
+    except OSError as err:
+        print(
+            f"skywatch: cannot bind http://{config.host}:{config.port} — "
+            f"{err.strerror or err}. Is something already using this port? "
+            f"Set PORT to a free one (e.g. PORT=8100 make run).",
+            file=sys.stderr,
+        )
+        return 2
     scheduler = Scheduler(runner.run, interval_seconds=config.fetch_interval_minutes * 60)
-    server = make_server(config, trigger=runner.run)
     host, port = server.server_address[:2]
     scheduler.start()
     log.info(
