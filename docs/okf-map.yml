@@ -46,6 +46,7 @@ mappings:
     docs:
       - "docs/specs/sources.md"
       - "docs/specs/verdict-digest.md"
+      - "docs/specs/status-page.md"
       - "docs/adr/0003-sqlite-persistence.md"
   - source: "tests/fixtures/**"
     docs:
@@ -96,15 +97,25 @@ mappings:
     docs:
       - "docs/adr/0004-smtp-digest-transport.md"
 
+  # Status page
+  - source: "skywatch/page.py"
+    docs:
+      - "docs/specs/status-page.md"
+  - source: "tests/test_page.py"
+    docs:
+      - "docs/specs/status-page.md"
+
   # Stack decision (ADR-0001): the files that embody it
   - source: "skywatch/server.py"
     docs:
+      - "docs/specs/status-page.md"
       - "docs/adr/0001-python-stdlib-stack.md"
   - source: "skywatch/__init__.py"
     docs:
       - "docs/adr/0001-python-stdlib-stack.md"
   - source: "tests/test_server.py"
     docs:
+      - "docs/specs/status-page.md"
       - "docs/adr/0001-python-stdlib-stack.md"
   - source: "Makefile"
     docs:

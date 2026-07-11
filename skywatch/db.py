@@ -211,6 +211,25 @@ def insert_verdicts(
         )
 
 
+def latest_cycle(conn: sqlite3.Connection) -> sqlite3.Row | None:
+    return conn.execute(
+        "SELECT * FROM cycles ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+
+
+def latest_verdicts(conn: sqlite3.Connection, now_utc: str) -> list[sqlite3.Row]:
+    """Upcoming verdicts from the most recent cycle that produced any."""
+    return conn.execute(
+        """
+        SELECT * FROM verdicts
+        WHERE cycle_id = (SELECT MAX(cycle_id) FROM verdicts)
+          AND end_utc >= ?
+        ORDER BY start_utc
+        """,
+        (now_utc,),
+    ).fetchall()
+
+
 def digest_already_sent(conn: sqlite3.Connection, local_date: str) -> bool:
     row = conn.execute(
         "SELECT 1 FROM digests WHERE local_date = ?", (local_date,)

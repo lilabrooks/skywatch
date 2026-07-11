@@ -27,7 +27,7 @@ def _serve(config: Config) -> int:
     if config.smtp is None:
         log.info("digest disabled: SMTP not configured (set SMTP_HOST and SMTP_TO)")
 
-    server = make_server(config.host, config.port)
+    server = make_server(config)
     host, port = server.server_address[:2]
     log.info("serving on http://%s:%s (health: /healthz)", host, port)
     try:
