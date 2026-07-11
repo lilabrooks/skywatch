@@ -43,7 +43,10 @@ server question also needed settling.
   dot-unstuffing) exercised by the real `SMTPNotifier` inside `make test`;
   (3) the same capture module runs standalone (`python3 -m tests.smtp_capture`)
   as a local inbox for manual checks, with Mailpit as the acceptance-pass
-  inbox; (4) an owner-run first real send.
+  inbox — `scripts/demo_digest.py` (`make demo`) drives this layer
+  deterministically by time-shifting the recorded fixtures so one digest
+  always sends, whatever tonight's real sky does; (4) an owner-run first
+  real send.
 - **AUTH/TLS scope**: `starttls()` and `login()` are invoked only when
   configured; the capture server implements neither (it exists to capture, not
   to authenticate). TLS-path testing happens at layer 4 against a real server.

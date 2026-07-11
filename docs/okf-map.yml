@@ -102,6 +102,12 @@ mappings:
   - source: "tests/smtp_capture.py"
     docs:
       - "docs/adr/0004-smtp-digest-transport.md"
+  - source: "scripts/demo_digest.py"
+    docs:
+      - "docs/adr/0004-smtp-digest-transport.md"
+  - source: "tests/test_demo.py"
+    docs:
+      - "docs/adr/0004-smtp-digest-transport.md"
 
   # Operations: scheduler, trigger, retention
   - source: "skywatch/scheduler.py"

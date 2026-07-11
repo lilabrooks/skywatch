@@ -1,6 +1,6 @@
 PYTHON ?= python3
 
-.PHONY: test run cycle
+.PHONY: test run cycle demo
 
 test:
 	$(PYTHON) -m compileall -q skywatch tests
@@ -11,3 +11,6 @@ run:
 
 cycle:
 	set -a; [ -f .env ] && . ./.env; set +a; exec $(PYTHON) -m skywatch cycle
+
+demo:
+	$(PYTHON) scripts/demo_digest.py
