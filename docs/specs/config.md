@@ -16,10 +16,16 @@ with a clear message naming the expected format, never a stack trace mid-cycle.
 
 # Contract
 
-Configuration comes from the process environment only. The app never reads
-`.env` itself; the Makefile `run` target sources `.env` (if present) before
-starting the process. A variable set to an empty or whitespace-only string
-counts as unset.
+Configuration comes from the process environment, backed by an env file: at
+startup the app fills in values from `.env` (path overridable via
+`SKYWATCH_ENV_FILE`; set it to an empty string to disable loading, which the
+test suite does for hermeticity) **for variables not already set** — the
+process environment always wins, so `PORT=9000 make run` overrides `.env`
+rather than being silently ignored. The file format is `KEY=VALUE` lines;
+comments, blanks, an optional `export ` prefix, and quoted values are
+accepted; a missing file is fine. Only the count of applied variables is
+logged, never values. A variable set to an empty or whitespace-only string
+counts as unset by the parsers below.
 
 Variables as of milestone 1 (later milestones extend this table):
 
@@ -44,6 +50,7 @@ Variables as of milestone 1 (later milestones extend this table):
 | `QUIET_HOURS`       | no       | local window `HH:MM-HH:MM`, may cross midnight; unset ⇒ none | —                |
 | `PASSES_BASE_URL`   | no       | http(s) URL — testing-only override of ADR-0002 upstream | real upstream        |
 | `FORECAST_BASE_URL` | no       | http(s) URL — testing-only override of ADR-0002 upstream | real upstream        |
+| `SKYWATCH_ENV_FILE` | no       | env-file path; empty string disables loading             | `.env`               |
 
 `*` `SMTP_HOST` and `SMTP_TO` are optional as a pair: setting either one
 requires the other; setting neither disables the digest (recorded per cycle as
@@ -64,8 +71,9 @@ requires the other; setting neither disables the digest (recorded per cycle as
 # Verification
 
 - Automated: `tests/test_config.py` (parsing, defaults, ranges, empty-as-unset,
-  error collection) and `tests/test_startup.py` (subprocess exits 2 on garbage
-  `LATITUDE` with the message above and no traceback; boots and serves
-  `/healthz` on valid config). Both run offline in `make test`.
+  error collection, env-file loading rules) and `tests/test_startup.py`
+  (subprocess exits 2 on garbage `LATITUDE` with the message above and no
+  traceback; boots and serves `/healthz` on valid config; environment-beats-
+  file precedence at process level). Both run offline in `make test`.
 - Manual: `LATITUDE=banana LONGITUDE=-122.33 make run` exits 2 with the
   message above.

@@ -37,7 +37,7 @@ Python ≥ 3.12, standard library only at runtime — zero third-party packages,
 # Consequences
 
 - `make test` and `make run` work on a clean checkout with only Python 3.12+ present; the quickstart has no install step.
-- Some small components are hand-rolled instead of imported: the SMTP loopback capture server (~80 lines, lands with the digest milestone), the scheduler loop, and `.env` loading (done by the Makefile `run` target sourcing `.env`, keeping app code env-only).
+- Some small components are hand-rolled instead of imported: the SMTP loopback capture server (~80 lines, lands with the digest milestone), the scheduler loop, and `.env` loading (~25 lines in `skywatch/config.py`: the app fills unset variables from the file at startup and the process environment always wins — originally the Makefile sourced `.env`, which inverted that precedence and was fixed after the acceptance pass caught it).
 - `unittest` is wordier than pytest (no fixtures/parametrize); acceptable at this scale.
 - `http.server` is documented as not production-hardened; acceptable because the service binds loopback only, for one local operator, with no untrusted exposure. This must stay in sync: any change that exposes the server beyond loopback reopens this ADR.
 - Later spec work (sources, digest, page) builds on these primitives and should not introduce packages casually; any new runtime dependency needs its own ADR.

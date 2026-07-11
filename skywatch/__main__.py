@@ -9,7 +9,7 @@ import os
 import sys
 
 from skywatch import db
-from skywatch.config import Config, ConfigError, load_config
+from skywatch.config import Config, ConfigError, apply_env_file, load_config
 from skywatch.cycle import CycleRunner, run_cycle
 from skywatch.notify import build_notifier
 from skywatch.scheduler import Scheduler
@@ -79,6 +79,14 @@ def main(argv: list[str] | None = None) -> int:
     if args not in ([], ["cycle"]):
         print(USAGE, file=sys.stderr)
         return 2
+    env_file = os.environ.get("SKYWATCH_ENV_FILE", ".env")
+    if env_file:
+        applied = apply_env_file(os.environ, env_file)
+        if applied:
+            log.info(
+                "loaded %d value(s) from %s (already-set environment wins)",
+                len(applied), env_file,
+            )
     try:
         config = load_config(os.environ)
     except ConfigError as err:

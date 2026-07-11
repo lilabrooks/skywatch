@@ -55,8 +55,10 @@ Secrets live only in the git-ignored `.env`.
 
 ## Configuration
 
-Everything comes from the environment; `make run`/`make cycle` source `.env`
-automatically. `.env.example` documents every variable with placeholders;
+Everything comes from the environment; Skywatch loads `.env` at startup to
+fill in whatever isn't already set (existing environment variables win, so
+`PORT=9000 make run` works as expected). `.env.example` documents every
+variable with placeholders;
 formats and defaults are specified in
 [docs/specs/config.md](docs/specs/config.md). Bad configuration fails fast at
 startup with one message listing every problem (exit 2) — e.g.

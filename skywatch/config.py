@@ -12,7 +12,7 @@ import os.path
 import re
 from dataclasses import dataclass, field
 from datetime import time
-from typing import Mapping
+from typing import Mapping, MutableMapping
 
 HOST = "127.0.0.1"  # loopback only; widening this reopens ADR-0001
 DEFAULT_PORT = 8000
@@ -68,6 +68,39 @@ class Config:
     retention_days: int = DEFAULT_RETENTION_DAYS
     quiet_hours: tuple[time, time] | None = None  # local (start, end); None = never quiet
     host: str = HOST
+
+
+def apply_env_file(environ: MutableMapping[str, str], path: str) -> list[str]:
+    """Fill environ from a KEY=VALUE file for keys not already set.
+
+    The process environment always wins over file values, so
+    `PORT=9000 make run` overrides `.env` rather than being silently ignored.
+    Comments, blank lines, an optional `export ` prefix, and single/double
+    quotes around values are handled; a missing file is not an error.
+    Returns the names that were applied, for logging (never values — the file
+    holds secrets).
+    """
+    try:
+        with open(path, encoding="utf-8") as handle:
+            text = handle.read()
+    except OSError:
+        return []
+    applied = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        name, _, value = line.partition("=")
+        name = name.strip()
+        if name.startswith("export "):
+            name = name[len("export "):].strip()
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+            value = value[1:-1]
+        if name and name not in environ:
+            environ[name] = value
+            applied.append(name)
+    return applied
 
 
 def _get(env: Mapping[str, str], name: str) -> str | None:

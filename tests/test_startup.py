@@ -19,15 +19,17 @@ def free_port() -> int:
         return sock.getsockname()[1]
 
 
-def run_skywatch(env_overrides, **kwargs):
+def run_skywatch(env_overrides, cwd=REPO_ROOT, **kwargs):
     env = {
         "PATH": os.environ.get("PATH", ""),
         "PYTHONUNBUFFERED": "1",
+        "PYTHONPATH": str(REPO_ROOT),
+        "SKYWATCH_ENV_FILE": "",  # hermetic: a developer's .env must not leak in
         **env_overrides,
     }
     return subprocess.Popen(
         [sys.executable, "-m", "skywatch"],
-        cwd=REPO_ROOT,
+        cwd=cwd,
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -64,6 +66,47 @@ class StartupFailureTests(unittest.TestCase):
         self.assertIn("LATITUDE", stderr)
         self.assertIn("LONGITUDE", stderr)
         self.assertNotIn("Traceback", stderr)
+
+
+class EnvFileTests(unittest.TestCase):
+    """Precedence at process level: already-set environment beats .env."""
+
+    def finish(self, process):
+        _, stderr = process.communicate(timeout=10)
+        return process.returncode, stderr
+
+    def test_environment_wins_over_env_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, ".env").write_text("LATITUDE=banana\nLONGITUDE=-122.33\n")
+            process = run_skywatch(
+                {
+                    "LATITUDE": "not-a-number-either",
+                    "SKYWATCH_ENV_FILE": ".env",
+                },
+                cwd=tmp,
+            )
+            code, stderr = self.finish(process)
+            self.assertEqual(code, 2)
+            self.assertIn("'not-a-number-either'", stderr, "the environment value must win")
+            self.assertNotIn("'banana'", stderr)
+
+    def test_env_file_fills_missing_values(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, ".env").write_text("LATITUDE=banana\n")
+            process = run_skywatch({"SKYWATCH_ENV_FILE": ".env"}, cwd=tmp)
+            code, stderr = self.finish(process)
+            self.assertEqual(code, 2)
+            self.assertIn("'banana'", stderr, "file value applies when the env has none")
+            self.assertIn("LONGITUDE", stderr)
+
+    def test_empty_skywatch_env_file_disables_loading(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, ".env").write_text("LATITUDE=banana\nLONGITUDE=-122.33\n")
+            process = run_skywatch({}, cwd=tmp)  # SKYWATCH_ENV_FILE="" by default here
+            code, stderr = self.finish(process)
+            self.assertEqual(code, 2)
+            self.assertNotIn("banana", stderr)
+            self.assertIn("LATITUDE", stderr)  # reported missing, not garbage
 
 
 class StartupSuccessTests(unittest.TestCase):

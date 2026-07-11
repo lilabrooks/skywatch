@@ -1,6 +1,6 @@
 import unittest
 
-from skywatch.config import DEFAULT_PORT, ConfigError, load_config
+from skywatch.config import DEFAULT_PORT, ConfigError, apply_env_file, load_config
 
 VALID = {"LATITUDE": "47.61", "LONGITUDE": "-122.33"}
 
@@ -113,6 +113,41 @@ class ThresholdConfigTests(ConfigAssertions):
             "CLOUD_MAYBE_MAX",
             ">= CLOUD_GO_MAX",
         )
+
+
+class ApplyEnvFileTests(unittest.TestCase):
+    def apply(self, text, environ=None):
+        import tempfile
+        from pathlib import Path
+
+        environ = {} if environ is None else environ
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / ".env"
+            path.write_text(text)
+            applied = apply_env_file(environ, str(path))
+        return environ, applied
+
+    def test_fills_unset_keys_only(self):
+        environ, applied = self.apply(
+            "LATITUDE=1\nLONGITUDE=2\n", environ={"LATITUDE": "kept"}
+        )
+        self.assertEqual(environ, {"LATITUDE": "kept", "LONGITUDE": "2"})
+        self.assertEqual(applied, ["LONGITUDE"])
+
+    def test_ignores_comments_blanks_and_junk(self):
+        environ, applied = self.apply("# comment\n\nnot a pair\nPORT=9000\n")
+        self.assertEqual(environ, {"PORT": "9000"})
+        self.assertEqual(applied, ["PORT"])
+
+    def test_strips_quotes_and_export_prefix(self):
+        environ, _ = self.apply("export SMTP_FROM='sky@local'\nSMTP_TO=\"o@e.org\"\n")
+        self.assertEqual(environ["SMTP_FROM"], "sky@local")
+        self.assertEqual(environ["SMTP_TO"], "o@e.org")
+
+    def test_missing_file_is_not_an_error(self):
+        environ = {}
+        self.assertEqual(apply_env_file(environ, "/no/such/.env"), [])
+        self.assertEqual(environ, {})
 
 
 class OperationsConfigTests(ConfigAssertions):

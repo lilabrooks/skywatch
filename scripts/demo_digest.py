@@ -60,11 +60,13 @@ def clear_forecast(now: datetime) -> dict:
     }
 
 
+class _QuietHandler(http.server.SimpleHTTPRequestHandler):
+    def log_message(self, format: str, *args: object) -> None:
+        pass
+
+
 def serve_fixtures(directory: str) -> tuple[http.server.ThreadingHTTPServer, int]:
-    handler = functools.partial(
-        http.server.SimpleHTTPRequestHandler, directory=directory
-    )
-    handler.log_message = lambda *a, **k: None  # type: ignore[attr-defined]
+    handler = functools.partial(_QuietHandler, directory=directory)
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server, server.server_address[1]

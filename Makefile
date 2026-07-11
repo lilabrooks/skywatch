@@ -6,11 +6,12 @@ test:
 	$(PYTHON) -m compileall -q skywatch tests
 	$(PYTHON) -m unittest discover -s tests -t . -b
 
+# Skywatch loads .env itself (already-set environment variables win).
 run:
-	set -a; [ -f .env ] && . ./.env; set +a; exec $(PYTHON) -m skywatch
+	exec $(PYTHON) -m skywatch
 
 cycle:
-	set -a; [ -f .env ] && . ./.env; set +a; exec $(PYTHON) -m skywatch cycle
+	exec $(PYTHON) -m skywatch cycle
 
 demo:
 	$(PYTHON) scripts/demo_digest.py
