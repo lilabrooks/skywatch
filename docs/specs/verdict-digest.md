@@ -69,5 +69,9 @@ anything else propagates as a bug.
   unconfigured SMTP → recorded skip.
 - Manual (2026-07-10): `make cycle` against a local fixture HTTP server and
   the standalone capture sink delivered exactly one digest on the clear-sky
-  forecast and none on the recorded overcast one. Mailpit-inbox variant
-  pending (Mailpit not installed on this machine).
+  forecast and none on the recorded overcast one.
+- Manual, Mailpit (2026-07-11, after the owner installed Mailpit v1.30.4):
+  go case via `make demo` delivered exactly one digest into the local Mailpit
+  inbox; the cloudy variant (same time-shifted passes, 100% overcast forecast,
+  real SMTP path) recorded `skipped: no watchable pass` and delivered nothing —
+  inbox total stayed 1, confirmed via the Mailpit API and UI.
