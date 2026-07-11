@@ -58,7 +58,10 @@ sink works too: `python3 -m tests.smtp_capture 1025` (prints captured mail).
 
 Only one sink can own port 1025 at a time: if `mailpit` reports
 `bind: address already in use`, another inbox (an earlier mailpit, the repo
-sink) is still running — find it with `lsof -nP -iTCP:1025` and stop it.
+sink) is still running — find it with `lsof -nP -iTCP:1025` and stop it, or
+move everything to a free port: `mailpit --smtp 127.0.0.1:2525` plus
+`SMTP_PORT=2525 make demo` (the demo always targets 127.0.0.1, whatever the
+port).
 
 With real data (`make run` / `make cycle` and `SMTP_TO` set in `.env`), you
 get at most one email per day, only when the next 24 h hold a go/maybe pass.

@@ -19,6 +19,7 @@ import argparse
 import functools
 import http.server
 import json
+import os
 import sys
 import tempfile
 import threading
@@ -74,9 +75,26 @@ def serve_fixtures(directory: str) -> tuple[http.server.ThreadingHTTPServer, int
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--to", default="you@example.org", help="digest recipient")
-    parser.add_argument("--smtp-port", type=int, default=1025, help="local sink port")
+    parser.add_argument(
+        "--to", default=None,
+        help="digest recipient (default: $SMTP_TO, else you@example.org)",
+    )
+    parser.add_argument(
+        "--smtp-port", type=int, default=None,
+        help="local sink port (default: $SMTP_PORT, else 1025); the host is "
+        "always 127.0.0.1 — the demo never sends off-machine",
+    )
     args = parser.parse_args()
+
+    recipient = args.to or os.environ.get("SMTP_TO", "").strip() or "you@example.org"
+    smtp_port = args.smtp_port
+    if smtp_port is None:
+        raw = os.environ.get("SMTP_PORT", "").strip()
+        try:
+            smtp_port = int(raw) if raw else 1025
+        except ValueError:
+            print(f"demo: SMTP_PORT must be a port number, got {raw!r}", file=sys.stderr)
+            return 2
 
     now = datetime.now(timezone.utc)
     with tempfile.TemporaryDirectory() as tmp:
@@ -84,8 +102,8 @@ def main() -> int:
         (Path(tmp) / "forecast.json").write_text(json.dumps(clear_forecast(now)))
         server, port = serve_fixtures(tmp)
         smtp = SmtpConfig(
-            host="127.0.0.1", port=args.smtp_port,
-            sender="skywatch@localhost", recipient=args.to,
+            host="127.0.0.1", port=smtp_port,
+            sender="skywatch@localhost", recipient=recipient,
         )
         config = Config(
             latitude=47.61, longitude=-122.33, port=0,
@@ -105,13 +123,13 @@ def main() -> int:
         f"| digest {result.digest_status}"
     )
     if result.digest_status.startswith("sent:"):
-        print(f"Delivered to the sink on 127.0.0.1:{args.smtp_port} — check your inbox UI.")
+        print(f"Delivered to the sink on 127.0.0.1:{smtp_port} — check your inbox UI.")
         return 0
     if result.digest_status.startswith("error:"):
         print(
-            f"No sink answered on 127.0.0.1:{args.smtp_port}.\n"
-            "Start one first:  mailpit   (UI: http://localhost:8025)\n"
-            "             or:  python3 -m tests.smtp_capture 1025",
+            f"No sink answered on 127.0.0.1:{smtp_port}.\n"
+            f"Start one first:  mailpit   (UI: http://localhost:8025)\n"
+            f"             or:  python3 -m tests.smtp_capture {smtp_port}",
             file=sys.stderr,
         )
     return 1
