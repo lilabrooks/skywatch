@@ -1,7 +1,7 @@
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, time, timezone
 
-from skywatch.digest import compose, watchable
+from skywatch.digest import compose, in_quiet_hours, watchable
 from skywatch.verdict import Verdict
 from tests.support import make_pass
 
@@ -48,6 +48,24 @@ class WatchableTests(unittest.TestCase):
             [v.pass_.start_utc for v in picked],
             ["2026-07-11T04:41:48Z", "2026-07-11T06:18:56Z"],
         )
+
+
+class QuietHoursTests(unittest.TestCase):
+    def test_window_within_one_day(self):
+        start, end = time(13, 0), time(15, 30)
+        self.assertFalse(in_quiet_hours(time(12, 59), start, end))
+        self.assertTrue(in_quiet_hours(time(13, 0), start, end), "start is inclusive")
+        self.assertTrue(in_quiet_hours(time(14, 0), start, end))
+        self.assertFalse(in_quiet_hours(time(15, 30), start, end), "end is exclusive")
+
+    def test_window_crossing_midnight(self):
+        start, end = time(22, 0), time(8, 0)
+        self.assertTrue(in_quiet_hours(time(23, 30), start, end))
+        self.assertTrue(in_quiet_hours(time(0, 0), start, end))
+        self.assertTrue(in_quiet_hours(time(7, 59), start, end))
+        self.assertFalse(in_quiet_hours(time(8, 0), start, end))
+        self.assertFalse(in_quiet_hours(time(12, 0), start, end))
+        self.assertFalse(in_quiet_hours(time(21, 59), start, end))
 
 
 class ComposeTests(unittest.TestCase):

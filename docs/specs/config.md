@@ -39,6 +39,9 @@ Variables as of milestone 1 (later milestones extend this table):
 | `SMTP_USER`         | no       | with `SMTP_PASSWORD` (both or neither)                   | —                    |
 | `SMTP_PASSWORD`     | no       | secret; env/`.env` only, excluded from config repr      | —                    |
 | `SMTP_STARTTLS`     | no       | yes/no (true/false, 1/0, on/off)                         | `no`                 |
+| `FETCH_INTERVAL_MINUTES` | no  | minutes between cycles, 5 to 1440                        | `360`                |
+| `RETENTION_DAYS`    | no       | days of history kept, 1 to 3650                          | `30`                 |
+| `QUIET_HOURS`       | no       | local window `HH:MM-HH:MM`, may cross midnight; unset ⇒ none | —                |
 | `PASSES_BASE_URL`   | no       | http(s) URL — testing-only override of ADR-0002 upstream | real upstream        |
 | `FORECAST_BASE_URL` | no       | http(s) URL — testing-only override of ADR-0002 upstream | real upstream        |
 

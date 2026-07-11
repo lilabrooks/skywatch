@@ -40,8 +40,9 @@ and it starts within the next 24 h. If none qualifies, no email — silence is
 the feature. Dedup: at most one digest per local calendar date (`digests`
 table, unique on local date), recorded only after a successful send, so a
 transport failure is retried by the next cycle and a repeated cycle never
-resends. Precedence of recorded outcomes: no watchable pass → already sent →
-SMTP unconfigured → send (or transport error).
+resends. Quiet hours (see the operations spec) suppress the send without
+consuming the day. Precedence of recorded outcomes: no watchable pass →
+already sent → quiet hours → SMTP unconfigured → send (or transport error).
 
 **Digest format.** Plain text, times in the machine's local timezone. Subject:
 count, first start time, its verdict, best elevation. One line per pass in the

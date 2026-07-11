@@ -68,6 +68,64 @@ class RouteTests(ServerTestBase):
         self.assertEqual(ctx.exception.code, 404)
 
 
+class CycleTriggerTests(unittest.TestCase):
+    def start_server(self, trigger):
+        server = make_server(make_config(port=0), trigger=trigger)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(thread.join, timeout=5)
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        return server.server_address[1]
+
+    def post(self, port, path="/cycle"):
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{port}{path}", data=b"", method="POST"
+        )
+        return urllib.request.urlopen(request, timeout=5)
+
+    def test_post_cycle_runs_the_trigger_and_reports_statuses(self):
+        from skywatch.cycle import CycleResult
+
+        result = CycleResult(7, "ok: 8 passes", "ok: 48 hours", 8, "skipped: SMTP not configured")
+        calls = []
+
+        def trigger():
+            calls.append(1)
+            return result
+
+        port = self.start_server(trigger)
+        with self.post(port) as response:
+            self.assertEqual(response.status, 200)
+            payload = json.loads(response.read())
+        self.assertEqual(calls, [1])
+        self.assertEqual(payload["cycle_id"], 7)
+        self.assertEqual(payload["passes"], "ok: 8 passes")
+        self.assertEqual(payload["digest"], "skipped: SMTP not configured")
+
+    def test_post_cycle_without_wired_trigger_is_503(self):
+        port = self.start_server(None)
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            self.post(port)
+        self.assertEqual(ctx.exception.code, 503)
+
+    def test_post_elsewhere_is_404(self):
+        port = self.start_server(lambda: None)
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            self.post(port, "/healthz")
+        self.assertEqual(ctx.exception.code, 404)
+
+    def test_crashing_trigger_is_500_without_traceback(self):
+        def trigger():
+            raise RuntimeError("boom")
+
+        port = self.start_server(trigger)
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            self.post(port)
+        self.assertEqual(ctx.exception.code, 500)
+        self.assertNotIn("Traceback", ctx.exception.read().decode())
+
+
 class PopulatedPageTests(unittest.TestCase):
     def test_page_shows_verdicts_after_a_cycle(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -75,7 +133,9 @@ class PopulatedPageTests(unittest.TestCase):
             conn = db.connect(path)
             run_cycle(conn, make_config(), clear_fetch(), lambda: FIXED_NOW)
             conn.close()
-            server = make_server(make_config(port=0, db_path=path))
+            server = make_server(
+                make_config(port=0, db_path=path), clock=lambda: FIXED_NOW
+            )
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()
             try:

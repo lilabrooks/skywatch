@@ -96,6 +96,90 @@ class ForecastStoreTests(unittest.TestCase):
         self.assertEqual(rows[0]["fetched_at_utc"], "2026-07-10T18:00:00Z")
 
 
+class RetentionTests(unittest.TestCase):
+    NOW = "2026-07-10T12:00:00Z"  # 30-day cutoff: 2026-06-10T12:00:00Z
+
+    def setUp(self):
+        self.conn = db.connect(":memory:")
+        self.addCleanup(self.conn.close)
+
+    def seed_cycle(self, started_at):
+        cycle_id = db.start_cycle(self.conn, started_at)
+        db.finish_cycle(self.conn, cycle_id, started_at, "ok: 0 passes", "ok: 0 hours")
+        return cycle_id
+
+    def seed_verdict(self, cycle_id, end_utc):
+        with self.conn:
+            self.conn.execute(
+                """
+                INSERT INTO verdicts (
+                    cycle_id, pass_source, start_utc, culmination_utc, end_utc,
+                    max_elevation_deg, start_compass, end_compass, visible,
+                    verdict, reason, cloud_cover_pct, created_at_utc
+                ) VALUES (?, 's', ?, ?, ?, 50, 'W', 'E', 1, 'go', 'r', 5, ?)
+                """,
+                (cycle_id, end_utc, end_utc, end_utc, end_utc),
+            )
+
+    def counts(self):
+        return {
+            table: self.conn.execute(f"SELECT COUNT(*) AS n FROM {table}").fetchone()["n"]
+            for table in ("passes", "forecast_hours", "verdicts", "cycles", "digests")
+        }
+
+    def test_prunes_only_rows_older_than_retention(self):
+        old, fresh = "2026-05-01T00:00:00Z", "2026-07-09T00:00:00Z"
+        db.replace_future_passes(
+            self.conn, "s", "2026-01-01T00:00:00Z",
+            [make_pass(start_utc=old, end_utc=old), make_pass(start_utc=fresh, end_utc=fresh)],
+            "2026-01-01T00:00:00Z",
+        )
+        db.upsert_forecast_hours(
+            self.conn,
+            [
+                ForecastHour(source="om", hour_utc=old, cloud_cover_pct=1),
+                ForecastHour(source="om", hour_utc=fresh, cloud_cover_pct=2),
+            ],
+            self.NOW,
+        )
+        old_cycle, fresh_cycle = self.seed_cycle(old), self.seed_cycle(fresh)
+        self.seed_verdict(old_cycle, old)
+        self.seed_verdict(fresh_cycle, fresh)
+        db.record_digest(self.conn, "2026-05-01", old, "s", 1)
+        db.record_digest(self.conn, "2026-07-09", fresh, "s", 1)
+
+        pruned = db.prune(self.conn, self.NOW, retention_days=30)
+
+        self.assertEqual(
+            pruned,
+            {"passes": 1, "forecast_hours": 1, "verdicts": 1, "cycles": 1, "digests": 1},
+        )
+        self.assertEqual(
+            self.counts(),
+            {"passes": 1, "forecast_hours": 1, "verdicts": 1, "cycles": 1, "digests": 1},
+        )
+        self.assertEqual(
+            self.conn.execute("SELECT started_at_utc FROM cycles").fetchone()[0], fresh
+        )
+
+    def test_old_cycle_with_recent_verdict_prunes_both_without_fk_error(self):
+        old_cycle = self.seed_cycle("2026-05-01T00:00:00Z")
+        self.seed_verdict(old_cycle, "2026-07-09T00:00:00Z")  # ended inside retention
+        pruned = db.prune(self.conn, self.NOW, retention_days=30)
+        self.assertEqual(pruned, {"verdicts": 1, "cycles": 1})
+        self.assertEqual(self.counts()["verdicts"], 0)
+
+    def test_row_exactly_at_cutoff_is_kept(self):
+        cutoff = "2026-06-10T12:00:00Z"
+        self.seed_cycle(cutoff)
+        pruned = db.prune(self.conn, self.NOW, retention_days=30)
+        self.assertEqual(pruned, {})
+        self.assertEqual(self.counts()["cycles"], 1)
+
+    def test_empty_database_prunes_nothing(self):
+        self.assertEqual(db.prune(self.conn, self.NOW, retention_days=30), {})
+
+
 class CycleAuditTests(unittest.TestCase):
     def test_start_and_finish_cycle(self):
         conn = db.connect(":memory:")

@@ -115,6 +115,43 @@ class ThresholdConfigTests(ConfigAssertions):
         )
 
 
+class OperationsConfigTests(ConfigAssertions):
+    def test_defaults(self):
+        config = load_config(VALID)
+        self.assertEqual(config.fetch_interval_minutes, 360)
+        self.assertEqual(config.retention_days, 30)
+        self.assertIsNone(config.quiet_hours)
+
+    def test_overrides(self):
+        from datetime import time
+
+        config = load_config(
+            {
+                **VALID,
+                "FETCH_INTERVAL_MINUTES": "30",
+                "RETENTION_DAYS": "90",
+                "QUIET_HOURS": "22:00-08:00",
+            }
+        )
+        self.assertEqual(config.fetch_interval_minutes, 30)
+        self.assertEqual(config.retention_days, 90)
+        self.assertEqual(config.quiet_hours, (time(22, 0), time(8, 0)))
+
+    def test_interval_bounds(self):
+        self.assert_error({**VALID, "FETCH_INTERVAL_MINUTES": "1"}, "FETCH_INTERVAL_MINUTES", "out of range")
+        self.assert_error({**VALID, "FETCH_INTERVAL_MINUTES": "hourly"}, "FETCH_INTERVAL_MINUTES", "minutes")
+
+    def test_retention_garbage(self):
+        self.assert_error({**VALID, "RETENTION_DAYS": "forever"}, "RETENTION_DAYS", "days")
+
+    def test_quiet_hours_garbage_names_format(self):
+        self.assert_error({**VALID, "QUIET_HOURS": "night"}, "QUIET_HOURS", "22:00-08:00")
+        self.assert_error({**VALID, "QUIET_HOURS": "25:00-08:00"}, "QUIET_HOURS", "not a valid time window")
+
+    def test_quiet_hours_equal_endpoints_rejected(self):
+        self.assert_error({**VALID, "QUIET_HOURS": "08:00-08:00"}, "QUIET_HOURS", "equal")
+
+
 class SmtpConfigTests(ConfigAssertions):
     def test_unset_means_digest_disabled(self):
         self.assertIsNone(load_config(VALID).smtp)

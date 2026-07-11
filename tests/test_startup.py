@@ -5,6 +5,7 @@ import os
 import socket
 import subprocess
 import sys
+import tempfile
 import unittest
 import urllib.request
 from pathlib import Path
@@ -68,8 +69,21 @@ class StartupFailureTests(unittest.TestCase):
 class StartupSuccessTests(unittest.TestCase):
     def test_boots_and_serves_healthz(self):
         port = free_port()
+        closed = free_port()  # nothing listens: the boot cycle fails fast, offline
+        with tempfile.TemporaryDirectory() as tmp:
+            self._boot_and_check(port, closed, tmp)
+
+    def _boot_and_check(self, port, closed, tmp):
         process = run_skywatch(
-            {"LATITUDE": "47.61", "LONGITUDE": "-122.33", "PORT": str(port)}
+            {
+                "LATITUDE": "47.61",
+                "LONGITUDE": "-122.33",
+                "PORT": str(port),
+                "DB_PATH": f"{tmp}/skywatch.db",
+                # Serve mode runs a cycle immediately; keep it off the network.
+                "PASSES_BASE_URL": f"http://127.0.0.1:{closed}/passes",
+                "FORECAST_BASE_URL": f"http://127.0.0.1:{closed}/forecast",
+            }
         )
         try:
             # The entrypoint logs the bound address once it is serving.

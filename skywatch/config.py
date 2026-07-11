@@ -9,7 +9,9 @@ with one message listing them all.
 from __future__ import annotations
 
 import os.path
+import re
 from dataclasses import dataclass, field
+from datetime import time
 from typing import Mapping
 
 HOST = "127.0.0.1"  # loopback only; widening this reopens ADR-0001
@@ -22,6 +24,10 @@ DEFAULT_SMTP_PORT = 1025  # Mailpit/local capture; real submission is usually 58
 DEFAULT_SMTP_FROM = "skywatch@localhost"
 DEFAULT_PASSES_BASE_URL = "https://sat.terrestre.ar/passes/25544"  # ADR-0002
 DEFAULT_FORECAST_BASE_URL = "https://api.open-meteo.com/v1/forecast"  # ADR-0002
+DEFAULT_FETCH_INTERVAL_MINUTES = 360
+DEFAULT_RETENTION_DAYS = 30
+
+_QUIET_HOURS_RE = re.compile(r"^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$")
 
 _TRUE = {"1", "true", "yes", "on"}
 _FALSE = {"0", "false", "no", "off"}
@@ -58,6 +64,9 @@ class Config:
     smtp: SmtpConfig | None = None
     passes_base_url: str = DEFAULT_PASSES_BASE_URL
     forecast_base_url: str = DEFAULT_FORECAST_BASE_URL
+    fetch_interval_minutes: int = DEFAULT_FETCH_INTERVAL_MINUTES
+    retention_days: int = DEFAULT_RETENTION_DAYS
+    quiet_hours: tuple[time, time] | None = None  # local (start, end); None = never quiet
     host: str = HOST
 
 
@@ -162,6 +171,31 @@ def _parse_base_url(
     return raw
 
 
+def _parse_quiet_hours(
+    env: Mapping[str, str], name: str, errors: list[str]
+) -> tuple[time, time] | None:
+    spec = "a local window like 22:00-08:00 (may cross midnight); unset means no quiet hours"
+    raw = _get(env, name)
+    if raw is None:
+        return None
+    match = _QUIET_HOURS_RE.match(raw)
+    if match is None:
+        errors.append(f"{name}: expected {spec}, got {raw!r}")
+        return None
+    start_h, start_m, end_h, end_m = (int(g) for g in match.groups())
+    if not (start_h <= 23 and end_h <= 23 and start_m <= 59 and end_m <= 59):
+        errors.append(f"{name}: {raw!r} is not a valid time window — expected {spec}")
+        return None
+    start, end = time(start_h, start_m), time(end_h, end_m)
+    if start == end:
+        errors.append(
+            f"{name}: start and end are equal ({raw!r}) — use unset for none; "
+            f"an all-day quiet window would silence the digest entirely"
+        )
+        return None
+    return (start, end)
+
+
 def _parse_smtp(env: Mapping[str, str], errors: list[str]) -> SmtpConfig | None:
     host = _get(env, "SMTP_HOST")
     recipient = _get(env, "SMTP_TO")
@@ -225,6 +259,15 @@ def load_config(env: Mapping[str, str]) -> Config:
         default=DEFAULT_MIN_ELEVATION_DEG,
     )
     smtp = _parse_smtp(env, errors)
+    fetch_interval = _parse_int(
+        env, "FETCH_INTERVAL_MINUTES", 5, 1440, DEFAULT_FETCH_INTERVAL_MINUTES,
+        errors, unit="minutes", example="360",
+    )
+    retention_days = _parse_int(
+        env, "RETENTION_DAYS", 1, 3650, DEFAULT_RETENTION_DAYS,
+        errors, unit="days", example="30",
+    )
+    quiet_hours = _parse_quiet_hours(env, "QUIET_HOURS", errors)
     passes_base_url = _parse_base_url(
         env, "PASSES_BASE_URL", DEFAULT_PASSES_BASE_URL, errors
     )
@@ -249,6 +292,8 @@ def load_config(env: Mapping[str, str]) -> Config:
         and cloud_go_max is not None
         and cloud_maybe_max is not None
         and min_elevation is not None
+        and fetch_interval is not None
+        and retention_days is not None
     )
     return Config(
         latitude=latitude,
@@ -261,4 +306,7 @@ def load_config(env: Mapping[str, str]) -> Config:
         smtp=smtp,
         passes_base_url=passes_base_url,
         forecast_base_url=forecast_base_url,
+        fetch_interval_minutes=fetch_interval,
+        retention_days=retention_days,
+        quiet_hours=quiet_hours,
     )

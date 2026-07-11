@@ -19,6 +19,7 @@ mappings:
   - source: "skywatch/__main__.py"
     docs:
       - "docs/specs/config.md"
+      - "docs/specs/operations.md"
   - source: "tests/test_config.py"
     docs:
       - "docs/specs/config.md"
@@ -39,6 +40,7 @@ mappings:
     docs:
       - "docs/specs/sources.md"
       - "docs/specs/verdict-digest.md"
+      - "docs/specs/operations.md"
   - source: "skywatch/model.py"
     docs:
       - "docs/specs/sources.md"
@@ -47,6 +49,7 @@ mappings:
       - "docs/specs/sources.md"
       - "docs/specs/verdict-digest.md"
       - "docs/specs/status-page.md"
+      - "docs/specs/operations.md"
       - "docs/adr/0003-sqlite-persistence.md"
   - source: "tests/fixtures/**"
     docs:
@@ -61,10 +64,12 @@ mappings:
   - source: "tests/test_db.py"
     docs:
       - "docs/specs/sources.md"
+      - "docs/specs/operations.md"
   - source: "tests/test_cycle.py"
     docs:
       - "docs/specs/sources.md"
       - "docs/specs/verdict-digest.md"
+      - "docs/specs/operations.md"
   - source: "tests/test_model.py"
     docs:
       - "docs/specs/sources.md"
@@ -80,6 +85,7 @@ mappings:
   - source: "skywatch/digest.py"
     docs:
       - "docs/specs/verdict-digest.md"
+      - "docs/specs/operations.md"
   - source: "skywatch/notify.py"
     docs:
       - "docs/specs/verdict-digest.md"
@@ -97,6 +103,14 @@ mappings:
     docs:
       - "docs/adr/0004-smtp-digest-transport.md"
 
+  # Operations: scheduler, trigger, retention
+  - source: "skywatch/scheduler.py"
+    docs:
+      - "docs/specs/operations.md"
+  - source: "tests/test_scheduler.py"
+    docs:
+      - "docs/specs/operations.md"
+
   # Status page
   - source: "skywatch/page.py"
     docs:
@@ -109,6 +123,7 @@ mappings:
   - source: "skywatch/server.py"
     docs:
       - "docs/specs/status-page.md"
+      - "docs/specs/operations.md"
       - "docs/adr/0001-python-stdlib-stack.md"
   - source: "skywatch/__init__.py"
     docs:
@@ -116,6 +131,7 @@ mappings:
   - source: "tests/test_server.py"
     docs:
       - "docs/specs/status-page.md"
+      - "docs/specs/operations.md"
       - "docs/adr/0001-python-stdlib-stack.md"
   - source: "Makefile"
     docs:

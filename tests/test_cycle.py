@@ -3,12 +3,14 @@ timeout/upstream-error/shape fixtures are survived per source (milestone 2),
 and the digest goes out exactly once on the go fixture, never on the cloudy
 one (milestone 3)."""
 
+import tempfile
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, time, timezone
+from pathlib import Path
 
 from skywatch import db
 from skywatch.config import SmtpConfig
-from skywatch.cycle import run_cycle
+from skywatch.cycle import CycleRunner, run_cycle
 from skywatch.fetch import FetchError
 from skywatch.notify import SMTPNotifier
 from tests.smtp_capture import SMTPCaptureServer
@@ -192,6 +194,35 @@ class DigestCycleTests(unittest.TestCase):
         self.assertEqual(result.digest_status, "skipped: SMTP not configured")
         self.assertEqual(self.digests(), [])
 
+    def test_quiet_hours_suppress_the_send_until_the_window_ends(self):
+        config = make_config(quiet_hours=(time(11, 0), time(13, 0)))
+        notifier = RecordingNotifier()
+        result = run_cycle(  # FIXED_NOW is 12:00 UTC -> inside 11:00-13:00
+            self.conn, config, clear_fetch(), fixed_clock, notifier, timezone.utc
+        )
+        self.assertEqual(result.digest_status, "skipped: quiet hours (11:00-13:00)")
+        self.assertEqual(notifier.sent, [])
+        self.assertEqual(self.digests(), [], "a quiet skip must not mark the day sent")
+
+        later = datetime(2026, 7, 10, 14, 0, 0, tzinfo=timezone.utc)
+        retry = run_cycle(
+            self.conn, config, clear_fetch(), lambda: later, notifier, timezone.utc
+        )
+        self.assertTrue(retry.digest_status.startswith("sent:"), retry.digest_status)
+        self.assertEqual(len(notifier.sent), 1)
+
+    def test_retention_pruning_runs_with_the_cycle(self):
+        stale = "2026-05-01T00:00:00Z"
+        cycle_id = db.start_cycle(self.conn, stale)
+        db.finish_cycle(self.conn, cycle_id, stale, "ok", "ok")
+        run_cycle(self.conn, make_config(), clear_fetch(), fixed_clock, None, timezone.utc)
+        remaining = self.conn.execute("SELECT started_at_utc FROM cycles").fetchall()
+        self.assertEqual(
+            [row[0] for row in remaining],
+            ["2026-07-10T12:00:00Z"],
+            "the 30-day default retention prunes the stale cycle",
+        )
+
     def test_transport_failure_recorded_and_retried_next_cycle(self):
         result = run_cycle(
             self.conn, self.config, clear_fetch(), fixed_clock, FailingNotifier(), timezone.utc
@@ -226,6 +257,26 @@ class DigestCycleTests(unittest.TestCase):
             all(row["start_utc"] >= "2026-07-12T00:00:00Z" for row in by_verdict.get("maybe", [])),
             "maybe is only for passes beyond the forecast horizon",
         )
+
+
+class CycleRunnerTests(unittest.TestCase):
+    def test_runner_shares_state_across_runs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = make_config(db_path=str(Path(tmp) / "skywatch.db"))
+            notifier = RecordingNotifier()
+            runner = CycleRunner(
+                config,
+                notifier=notifier,
+                fetch_json=clear_fetch(),
+                clock=fixed_clock,
+                tz=timezone.utc,
+            )
+            first = runner.run()
+            second = runner.run()
+            self.assertTrue(first.digest_status.startswith("sent:"))
+            self.assertEqual(second.digest_status, "skipped: already sent for 2026-07-10")
+            self.assertEqual(len(notifier.sent), 1)
+            self.assertEqual(second.cycle_id, first.cycle_id + 1)
 
 
 class LoopbackSMTPCycleTests(unittest.TestCase):

@@ -7,12 +7,20 @@ formatting target is the goal's example line:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, tzinfo as TzInfo
+from datetime import datetime, time, timedelta, tzinfo as TzInfo
 
 from skywatch.model import parse_utc
 from skywatch.verdict import GO, MAYBE, Verdict
 
 WINDOW_HOURS = 24
+
+
+def in_quiet_hours(moment: time, start: time, end: time) -> bool:
+    """True when the local wall-clock time falls in [start, end); the window
+    may cross midnight (22:00-08:00)."""
+    if start <= end:
+        return start <= moment < end
+    return moment >= start or moment < end
 
 
 def watchable(verdicts: list[Verdict], now: datetime) -> list[Verdict]:

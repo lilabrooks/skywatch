@@ -10,8 +10,9 @@ import sys
 
 from skywatch import db
 from skywatch.config import Config, ConfigError, load_config
-from skywatch.cycle import run_cycle
+from skywatch.cycle import CycleRunner, run_cycle
 from skywatch.notify import build_notifier
+from skywatch.scheduler import Scheduler
 from skywatch.server import make_server
 
 log = logging.getLogger("skywatch")
@@ -24,17 +25,29 @@ def _serve(config: Config) -> int:
     schema_version = connection.execute("PRAGMA user_version").fetchone()[0]
     connection.close()
     log.info("database ready at %s (schema v%d)", config.db_path, schema_version)
-    if config.smtp is None:
+    notifier = build_notifier(config)
+    if notifier is None:
         log.info("digest disabled: SMTP not configured (set SMTP_HOST and SMTP_TO)")
+    if config.quiet_hours is not None:
+        start, end = config.quiet_hours
+        log.info("quiet hours: no digests between %s and %s local", f"{start:%H:%M}", f"{end:%H:%M}")
 
-    server = make_server(config)
+    runner = CycleRunner(config, notifier=notifier)
+    scheduler = Scheduler(runner.run, interval_seconds=config.fetch_interval_minutes * 60)
+    server = make_server(config, trigger=runner.run)
     host, port = server.server_address[:2]
-    log.info("serving on http://%s:%s (health: /healthz)", host, port)
+    scheduler.start()
+    log.info(
+        "serving on http://%s:%s (health: /healthz, trigger: POST /cycle); "
+        "cycle now, then every %d min",
+        host, port, config.fetch_interval_minutes,
+    )
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         log.info("shutting down")
     finally:
+        scheduler.stop()
         server.server_close()
     return 0
 

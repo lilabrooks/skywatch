@@ -7,9 +7,10 @@ tracked via PRAGMA user_version, and applied on every connect.
 from __future__ import annotations
 
 import sqlite3
+from datetime import timedelta
 from typing import TYPE_CHECKING, Iterable
 
-from skywatch.model import ForecastHour, Pass
+from skywatch.model import ForecastHour, Pass, parse_utc, to_utc_z
 
 if TYPE_CHECKING:
     from skywatch.verdict import Verdict
@@ -252,6 +253,40 @@ def record_digest(
             """,
             (local_date, sent_at_utc, subject, pass_count),
         )
+
+
+def prune(conn: sqlite3.Connection, now_utc: str, retention_days: int) -> dict[str, int]:
+    """Delete rows older than the retention window (docs/specs/operations.md).
+
+    Verdicts go when they ended before the cutoff OR when their owning cycle
+    is being pruned (whichever comes first), so the cycles delete never trips
+    the foreign key.
+    """
+    cutoff = to_utc_z(parse_utc(now_utc) - timedelta(days=retention_days))
+    cutoff_date = cutoff[:10]
+    with conn:
+        counts = {
+            "passes": conn.execute(
+                "DELETE FROM passes WHERE end_utc < ?", (cutoff,)
+            ).rowcount,
+            "forecast_hours": conn.execute(
+                "DELETE FROM forecast_hours WHERE hour_utc < ?", (cutoff,)
+            ).rowcount,
+            "verdicts": conn.execute(
+                """
+                DELETE FROM verdicts WHERE end_utc < ?
+                   OR cycle_id IN (SELECT id FROM cycles WHERE started_at_utc < ?)
+                """,
+                (cutoff, cutoff),
+            ).rowcount,
+            "cycles": conn.execute(
+                "DELETE FROM cycles WHERE started_at_utc < ?", (cutoff,)
+            ).rowcount,
+            "digests": conn.execute(
+                "DELETE FROM digests WHERE local_date < ?", (cutoff_date,)
+            ).rowcount,
+        }
+    return {table: n for table, n in counts.items() if n}
 
 
 def start_cycle(conn: sqlite3.Connection, started_at_utc: str) -> int:

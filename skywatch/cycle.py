@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+import threading
 from dataclasses import dataclass
 from datetime import datetime, tzinfo as TzInfo
 from typing import Callable
@@ -53,9 +54,14 @@ def _maybe_send_digest(
     picked = digest.watchable(verdicts, now)
     if not picked:
         return "skipped: no watchable pass in the next 24h"
-    local_date = now.astimezone(tz).date().isoformat()
+    local_now = now.astimezone(tz)
+    local_date = local_now.date().isoformat()
     if db.digest_already_sent(conn, local_date):
         return f"skipped: already sent for {local_date}"
+    if config.quiet_hours is not None:
+        start, end = config.quiet_hours
+        if digest.in_quiet_hours(local_now.time(), start, end):
+            return f"skipped: quiet hours ({start:%H:%M}-{end:%H:%M})"
     if notifier is None:
         return "skipped: SMTP not configured"
     subject, body = digest.compose(picked, config.latitude, config.longitude, tz)
@@ -67,6 +73,44 @@ def _maybe_send_digest(
     db.record_digest(conn, local_date, to_utc_z(now), subject, len(picked))
     log.info("digest sent for %s: %s", local_date, subject)
     return f"sent: {subject}"
+
+
+class CycleRunner:
+    """Shared entry point for the scheduler and the on-demand trigger.
+
+    Serializes runs with a lock (no concurrent double-fetch) and opens a fresh
+    connection per run, so it is safe to call from any thread.
+    """
+
+    def __init__(
+        self,
+        config: Config,
+        notifier: Notifier | None = None,
+        fetch_json: sources.FetchJson = http_get_json,
+        clock: Clock = utcnow,
+        tz: TzInfo | None = None,
+    ):
+        self._config = config
+        self._notifier = notifier
+        self._fetch_json = fetch_json
+        self._clock = clock
+        self._tz = tz
+        self._lock = threading.Lock()
+
+    def run(self) -> CycleResult:
+        with self._lock:
+            conn = db.connect(self._config.db_path)
+            try:
+                return run_cycle(
+                    conn,
+                    self._config,
+                    fetch_json=self._fetch_json,
+                    clock=self._clock,
+                    notifier=self._notifier,
+                    tz=self._tz,
+                )
+            finally:
+                conn.close()
 
 
 def run_cycle(
@@ -103,6 +147,10 @@ def run_cycle(
     verdicts = judge(db.future_passes(conn, started_at), db.forecast_map(conn), config)
     db.insert_verdicts(conn, cycle_id, verdicts, to_utc_z(clock()))
     digest_status = _maybe_send_digest(conn, config, verdicts, notifier, clock(), tz)
+
+    pruned = db.prune(conn, started_at, config.retention_days)
+    if pruned:
+        log.info("retention: pruned %s (older than %d days)", pruned, config.retention_days)
 
     db.finish_cycle(
         conn, cycle_id, to_utc_z(clock()), passes_status, forecast_status, digest_status
