@@ -2,6 +2,8 @@
 
 ## 2026-07-11
 
+- No-doc-change rationale for the untracked `.codex/` hooks and `AGENTS.md` sitting in the working tree: they are owner-added Codex CLI agent config (mirroring the `.claude` hooks), not Skywatch behavior — no spec or ADR governs them and none changed. If the owner commits them, they should get okf-map entries (and possibly a short ADR on multi-agent tooling) at that point.
+
 - Demo ergonomics: `make demo` (scripts/demo_digest.py) now honors `SMTP_PORT` and `SMTP_TO` from the environment, with CLI flags still winning and a clear exit-2 message on a garbage `SMTP_PORT`; the sink host stays hardcoded to 127.0.0.1 so the demo can never send off-machine. README's port-collision note now offers the move-ports alternative (`mailpit --smtp 127.0.0.1:2525` + `SMTP_PORT=2525 make demo`). Verified live through make on port 2525; 3 new tests (env respected, flags beat env, garbage rejected), 154 green. Staleness rationale for scripts/demo_digest.py → ADR-0004: tooling ergonomics only, the transport decision and its gating are unchanged.
 
 - README: clarified AI-tool attribution in the existing provenance section: Skywatch was built primarily with Claude Code, while Codex assisted with CI, dependency automation, and repository metadata. Documentation only; no product behavior or governed contract changed.
