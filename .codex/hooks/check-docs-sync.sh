@@ -19,7 +19,7 @@ docs_changed=$(printf '%s\n' "$changed" | grep -E '^docs/' | head -n 1)
 
 if [ -n "$code_changed" ] && [ -z "$docs_changed" ]; then
   cat <<'EOF'
-{"decision": "block", "reason": "Code changed this session but nothing under /docs was updated. Per the CLAUDE.md workflow: if behavior or a contract changed, update the governing file in /docs/specs or /docs/adr and add a dated entry to /docs/log.md. If no doc change is warranted, add a one-line entry to /docs/log.md saying why."}
+{"decision": "block", "reason": "Code changed this session but nothing under /docs was updated. Per the repo playbook (CLAUDE.md / AGENTS.md): if behavior or a contract changed, update the governing file in /docs/specs or /docs/adr and add a dated entry to /docs/log.md. If no doc change is warranted, add a one-line entry to /docs/log.md saying why."}
 EOF
   exit 0
 fi

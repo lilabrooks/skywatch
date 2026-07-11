@@ -22,7 +22,7 @@ declared=$(grep -m1 -oE 'okf_version:[[:space:]]*"?[0-9]+\.[0-9]+"?' "$ROOT/docs
   | grep -oE '[0-9]+\.[0-9]+')
 
 if [ -n "$latest" ] && [ "$latest" != "$declared" ]; then
-  notes="OKF version check: the latest OKF spec version on the official main branch is $latest. This repo's docs/index.md declares okf_version ${declared:-(none)}. The OKF version policy in CLAUDE.md applies."
+  notes="OKF version check: the latest OKF spec version on the official main branch is $latest. This repo's docs/index.md declares okf_version ${declared:-(none)}. The OKF version policy in the repo playbook (CLAUDE.md / AGENTS.md) applies."
 fi
 
 kit_declared=$(grep -m1 -oE 'kit_version:[[:space:]]*"?[0-9]+\.[0-9]+\.[0-9]+"?' "$ROOT/docs/index.md" 2>/dev/null \
@@ -32,7 +32,7 @@ if [ -n "$kit_declared" ]; then
   kit_latest=$(curl -fsSL --max-time 5 "$KIT_VERSION_URL" 2>/dev/null \
     | grep -m1 -oE '[0-9]+\.[0-9]+\.[0-9]+')
   if [ -n "$kit_latest" ] && [ "$kit_latest" != "$kit_declared" ]; then
-    kit_note="Kit version check: this repo was installed from claude-okf-repo-kit $kit_declared and the published kit version is $kit_latest. The Kit version policy in CLAUDE.md applies."
+    kit_note="Kit version check: this repo was installed from claude-okf-repo-kit $kit_declared and the published kit version is $kit_latest. The Kit version policy in the repo playbook (CLAUDE.md / AGENTS.md) applies."
     if [ -n "$notes" ]; then
       notes="$notes $kit_note"
     else
