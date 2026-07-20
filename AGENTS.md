@@ -10,7 +10,7 @@ deciders: [Lila Brooks]
 
 # Master objective
 
-Current state: v1 is built and the goal was met on 2026-07-11 — scheduler, both upstream sources, verdict join, SMTP digest, status page, and a clean-checkout README quickstart, all verified (see `docs/log.md`). ADRs 0001–0004 are `status: proposed`, awaiting owner review; new milestones enter `docs/GOAL.md` only by owner decision. Skywatch: a local always-on service that emails a digest when tonight's ISS pass is worth stepping outside for.
+Current state: v1 is built and the goal was met on 2026-07-11 — scheduler, both upstream sources, verdict join, SMTP digest, status page, and a clean-checkout README quickstart, all verified (see `docs/log.md`). ADRs 0001–0004 were accepted by the owner on 2026-07-19 (0005 was already accepted) and bind future work; new milestones enter `docs/GOAL.md` only by owner decision. Skywatch: a local always-on service that emails a digest when tonight's ISS pass is worth stepping outside for.
 
 Target state: A scheduler fetching ISS passes and cloud cover for a configured location into SQLite, joining them into go/maybe/skip verdicts, serving a local status page, and sending an SMTP digest only when tonight has a watchable pass — all testable fully offline.
 

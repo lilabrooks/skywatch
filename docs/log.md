@@ -1,5 +1,18 @@
 # Log
 
+## 2026-07-19
+
+- ADRs 0001-0004 accepted by the owner: flipped `status: proposed` to
+  `accepted` in each frontmatter and body Status section (Python
+  stdlib-only stack; sat.terrestre.ar and Open-Meteo upstream sources;
+  SQLite persistence layout and migrations; SMTP digest transport,
+  gating, and test layers), removed the "(proposed)" markers from
+  `docs/adr/index.md`, and updated the current-state line in `CLAUDE.md`
+  and `AGENTS.md`. All four were implemented and verified when the goal
+  was met on 2026-07-11, so no implementation change was needed — the
+  decisions now bind future work. `bash scripts/okf pending` reports an
+  empty review inbox. Docs-only change; no code or behavior touched.
+
 ## 2026-07-11
 
 - Hook audit (both agents), clean bill plus one wording fix. Reviewed and exercised `.claude`/`.codex` hooks end to end in a scratch clone: bash -n and shellcheck clean; mirrors byte-identical; docs-sync silent on a clean tree and on agent-config-only changes, blocks (valid JSON) on modified *and* untracked code without docs, delegates correctly to `scripts/okf check-stale` (a `docs/log.md` change legitimately satisfies the rationale rule — verified in the okf source — and a stale mapping produces the okf block JSON); both env-var forms work from a foreign cwd and the no-var/foreign-cwd case degrades to a safe silent no-op. Version hook: silent when versions match and when offline (curl shimmed to fail), emits valid drift JSON on doctored versions, survives a missing `docs/index.md`. No concurrency conflicts possible: both hooks are read-only (git reads, greps, curl), no temp files or locks, and each agent's wiring points only at its own copies. One defect found and fixed: hook messages said "per the CLAUDE.md workflow", which is wrong guidance inside a Codex session — both now say "the repo playbook (CLAUDE.md / AGENTS.md)", mirrors re-synced.

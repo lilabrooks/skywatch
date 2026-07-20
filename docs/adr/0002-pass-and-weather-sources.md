@@ -4,12 +4,12 @@ title: ISS pass and cloud-cover upstream APIs
 description: Passes from sat.terrestre.ar (keyless, visibility-aware), hourly cloud cover from Open-Meteo (keyless); per-source failure isolation in the cycle.
 tags: [adr]
 timestamp: 2026-07-10T23:49:31Z
-status: proposed
+status: accepted
 ---
 
 # Status
 
-Proposed (authored per the decision policy; awaiting owner review)
+Accepted (2026-07-19, by the owner)
 
 # Context
 

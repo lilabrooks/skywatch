@@ -4,12 +4,12 @@ title: Python standard-library-only runtime stack
 description: Python 3.12+ with zero third-party runtime dependencies; stdlib http.server, urllib, sqlite3, smtplib, threading, unittest; make as the command runner.
 tags: [adr]
 timestamp: 2026-07-10T23:37:15Z
-status: proposed
+status: accepted
 ---
 
 # Status
 
-Proposed (authored per the decision policy; awaiting owner review)
+Accepted (2026-07-19, by the owner)
 
 # Context
 
