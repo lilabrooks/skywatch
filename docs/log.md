@@ -2,6 +2,35 @@
 
 ## 2026-07-19
 
+- Kit upgrade 0.1.1 → 0.3.6 via the safe updater, following the repo-pulse
+  run earlier today (same pre-manifest path; the classifier race that run
+  exposed was already fixed in kit 0.3.6 before this one). What landed:
+  `.codex/hooks` declared in a new top-level `mirrors:` list in
+  `docs/okf-map.yml` (kit ADR 0021) so the updater now syncs the Codex hook
+  mirrors mechanically — retiring the manual sync-the-other-copy convention
+  this repo's playbooks carried; both hook pairs and `scripts/okf` adopted
+  from kit candidates after verifying our 2026-07-11 local hook hardening
+  was fully absorbed upstream (kit 0.1.2's shipped-hook union; the
+  playbook-wording fix included) with mirrors confirmed byte-identical; the
+  six `okf-*` skills installed; `docs/index.md` restamped in place; and the
+  provenance manifest seeded so future upgrades refresh unedited kit files
+  in place. `CLAUDE.md` rebuilt from the kit 0.3.6 template carrying this
+  repo's master objective, verification commands, and the Codex-stack
+  bullet (now citing the `mirrors:` declaration); `AGENTS.md` rebuilt from
+  it through this repo's established transform — the Session-start reads
+  section, Codex hook bullets, and honest policy-only guardrail wording all
+  preserved verbatim, with the new second-agent paragraph reframed as this
+  port itself. New `tests/test_agent_parity.py` (unittest, skipped when the
+  Codex stack is absent) guards hook-mirror byte-parity and `hooks.json`
+  wiring. The `docs/okf-map.2.yml` starter candidate was dropped (our map
+  carries real mappings plus the declaration). Verified: `make test` green
+  (156 tests including the two new parity guards), `bash scripts/okf
+  check-stale` current, kit `verify-install` passed with zero warnings, and
+  the SessionStart hook is fully silent — no drift, no advisories, and an
+  empty ADR inbox after today's acceptances.
+
+## 2026-07-19
+
 - ADRs 0001-0004 accepted by the owner: flipped `status: proposed` to
   `accepted` in each frontmatter and body Status section (Python
   stdlib-only stack; sat.terrestre.ar and Open-Meteo upstream sources;

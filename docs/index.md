@@ -1,6 +1,6 @@
 ---
 okf_version: "0.1"
-kit_version: "0.1.1"
+kit_version: "0.3.6"
 ---
 
 # Knowledge bundle
