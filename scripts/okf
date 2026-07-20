@@ -17,6 +17,46 @@ else
   MAP_FILE="$ROOT/docs/okf-map.yml"
 fi
 
+# Optional layout block in the map file (ADR 0018): a brownfield repo that
+# already keeps its specs or ADRs elsewhere points the kit at them here.
+# Absent keys fall back to the canonical tree, so existing installs are
+# unaffected.
+layout_value() {
+  key="$1"
+  default="$2"
+  value=""
+  if [ -f "$MAP_FILE" ]; then
+    value="$(awk -v key="$key" '
+      function clean(s) {
+        gsub(/#.*/, "", s)
+        gsub(/^[[:space:]"'\'']+/, "", s)
+        gsub(/[[:space:]"'\'']+$/, "", s)
+        return s
+      }
+      /^layout:/ { in_layout = 1; next }
+      /^[^[:space:]#]/ { in_layout = 0 }
+      in_layout {
+        line = $0
+        sub(/^[[:space:]]+/, "", line)
+        if (index(line, key ":") == 1) {
+          sub(key ":", "", line)
+          print clean(line)
+          exit
+        }
+      }
+    ' "$MAP_FILE")"
+  fi
+  if [ -n "$value" ]; then
+    printf '%s\n' "${value%/}"
+  else
+    printf '%s\n' "$default"
+  fi
+}
+
+SPECS_DIR="$(layout_value specs_dir docs/specs)"
+ADR_DIR="$(layout_value adr_dir docs/adr)"
+DRAFTS_DIR="$SPECS_DIR/_drafts"
+
 usage() {
   cat <<'EOF'
 Usage:
@@ -32,6 +72,15 @@ Environment:
   OKF_BASE      Diff base for changed files. Defaults to HEAD.
   OKF_MAP_FILE  Mapping file. Defaults to docs/okf-map.yml after install,
                 or root okf-map.yml in this source-kit layout.
+
+Layout:
+  An optional `layout:` block in the map file relocates the knowledge homes
+  for repos that already keep specs or ADRs elsewhere (defaults shown):
+
+    layout:
+      specs_dir: docs/specs      # spec home; drafts in <specs_dir>/_drafts
+      adr_dir: docs/adr          # ADR home; index at <adr_dir>/index.md
+      stamp_file: docs/index.md  # version stamps read by the SessionStart hook
 EOF
 }
 
@@ -55,6 +104,13 @@ mapping_pairs() {
       gsub(/^[[:space:]"'\''-]+/, "", s)
       gsub(/[[:space:]"'\'']+$/, "", s)
       return s
+    }
+
+    # A new top-level key (layout:, mirrors:, ...) ends the mappings list;
+    # without this reset its list items would leak into the last mapping.
+    /^[A-Za-z_]+:/ {
+      source = ""
+      in_docs = 0
     }
 
     /^[[:space:]]*-[[:space:]]*source:/ {
@@ -92,15 +148,22 @@ matches_pattern() {
   [[ "$file" == $pattern ]]
 }
 
+# Workflow and agent-config paths check-stale skips entirely; .codex/ and
+# AGENTS.md cover a second agent run against the same checkout.
 is_workflow_file() {
   case "$1" in
-    docs/*|.claude/*|CLAUDE.md|CLAUDE.local.md|scripts/okf) return 0 ;;
+    docs/*|.claude/*|.codex/*|CLAUDE.md|CLAUDE.local.md|AGENTS.md|scripts/okf) return 0 ;;
+  esac
+  # Layout-relocated knowledge homes count as workflow files even when they
+  # sit outside docs/.
+  case "$1" in
+    "$SPECS_DIR"/*|"$ADR_DIR"/*) return 0 ;;
     *) return 1 ;;
   esac
 }
 
-# Repo-meta files that never need an okf-map.yml mapping of their own; kept in
-# sync with the Stop hook's non-implementation list.
+# Repo-meta files that never need an okf-map.yml mapping of their own. Together
+# with is_workflow_file these are the Stop hook's non-implementation list.
 is_meta_file() {
   case "$1" in
     README.md|CHANGELOG.md|LICENSE|.gitignore|.editorconfig|.env.example) return 0 ;;
@@ -226,7 +289,7 @@ draft_one() {
     return 0
   }
 
-  out_dir="$ROOT/docs/specs/_drafts"
+  out_dir="$ROOT/$DRAFTS_DIR"
   mkdir -p "$out_dir"
   out="$out_dir/$(safe_name "$target").md"
   timestamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -318,7 +381,7 @@ adr_suggest() {
     suggestions="${suggestions}Deployment, infrastructure, or CI topology change"$'\n'
   fi
 
-  if printf '%s\n' "$changed" | grep -Eiq '(migration|schema|prisma|sql|db/|database|models/)'; then
+  if printf '%s\n' "$changed" | grep -Eiq '(migration|prisma|sql|db/|database|models/)'; then
     suggestions="${suggestions}Persistence model or data migration change"$'\n'
   fi
 
@@ -330,8 +393,11 @@ adr_suggest() {
     suggestions="${suggestions}Caching, queueing, worker, or scheduling change"$'\n'
   fi
 
-  if printf '%s\n' "$changed" | grep -Eiq '(openapi|swagger|graphql|schema\.graphql|\.proto$|api/|routes/)'; then
-    suggestions="${suggestions}Public API or cross-service contract change"$'\n'
+  # `schema` sits here, not under persistence: machine-readable contract
+  # schemas (JSON Schema, GraphQL, proto) are contract surfaces, and DB schema
+  # work still matches the persistence pattern via migration/sql/db/.
+  if printf '%s\n' "$changed" | grep -Eiq '(openapi|swagger|graphql|schema|\.proto$|api/|routes/)'; then
+    suggestions="${suggestions}Public API, schema, or cross-service contract change"$'\n'
   fi
 
   if [ -z "$suggestions" ]; then
@@ -344,7 +410,7 @@ adr_suggest() {
     [ -n "$suggestion" ] || continue
     slug="$(printf '%s' "$suggestion" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')"
     printf -- '- %s\n' "$suggestion"
-    printf '  Draft path: docs/adr/NNNN-%s.md\n' "$slug"
+    printf '  Draft path: %s/NNNN-%s.md\n' "$ADR_DIR" "$slug"
     printf '  Scaffold: bash scripts/okf new-adr %s "Title"\n' "$slug"
     printf '  Cover: context, decision, alternatives considered, consequences, rollback/revisit trigger.\n'
   done
@@ -357,18 +423,105 @@ title_from_slug() {
   printf '%s' "$1" | tr '-' ' ' | awk '{ $1 = toupper(substr($1,1,1)) substr($1,2); print }'
 }
 
+index_title_of() {
+  knowledge_file="$1"
+  found_title="$(grep -m1 -E '^title:' "$knowledge_file" 2>/dev/null | sed -E 's/^title:[[:space:]]*//; s/[[:space:]]+$//')"
+  if [ -z "$found_title" ]; then
+    found_title="$(grep -m1 -E '^#[[:space:]]' "$knowledge_file" 2>/dev/null | sed -E 's/^#[[:space:]]+//; s/[[:space:]]+$//')"
+  fi
+  [ -n "$found_title" ] || found_title="$(basename "$knowledge_file" .md)"
+  printf '%s\n' "$found_title"
+}
+
 index_append() {
   index_file="$1"
   heading="$2"
   entry="$3"
   if [ ! -f "$index_file" ]; then
     printf '%s\n' "$heading" > "$index_file"
+    # Backfill entries for knowledge files that already exist, so a freshly
+    # created index never lists less than its directory holds (brownfield
+    # repos arrive with specs and ADRs the kit did not write). The file the
+    # new entry links is skipped; the caller appends it below.
+    for existing_file in "$(dirname "$index_file")"/*.md; do
+      [ -e "$existing_file" ] || continue
+      existing_base="$(basename "$existing_file")"
+      case "$existing_base" in
+        index.md|*.[0-9].md|*.[0-9][0-9].md) continue ;;
+      esac
+      case "$entry" in
+        *"($existing_base)"*) continue ;;
+      esac
+      printf -- '- [%s](%s)\n' "$(index_title_of "$existing_file")" "$existing_base" >> "$index_file"
+    done
+  fi
+  # A table-style index (ADR 0019): appending a bullet would corrupt or
+  # trail the table, and writing a table row means guessing the column
+  # layout. Any table row in the file marks the index as table-style —
+  # real ones keep prose after the table, so the last line is no signal.
+  # Decline; the caller reports the entry for a manual add.
+  if grep -q '^|' "$index_file"; then
+    return 1
   fi
   last_line="$(awk 'NF { line = $0 } END { print line }' "$index_file")"
   case "$last_line" in
     '#'*) printf '\n%s\n' "$entry" >> "$index_file" ;;
     *) printf '%s\n' "$entry" >> "$index_file" ;;
   esac
+}
+
+# Numbering-convention scan (ADRs 0018, 0019). Bare-numeric names (0001-*,
+# 001-*) take precedence; when none exist and every alpha-prefixed name
+# (adr-0001-*) shares one prefix word, that convention can be followed
+# instead. Index files and installer-written numbered review candidates are
+# excluded, matching the pending scan. Sets: bare_found, bare_next,
+# bare_width, pref_word (empty when none), pref_mixed, pref_next, pref_width.
+scan_numbering() {
+  scan_dir="$1"
+  bare_found=0
+  bare_next=1
+  bare_width=0
+  pref_word=""
+  pref_mixed=0
+  pref_next=1
+  pref_width=0
+  for scanned in "$scan_dir"/*.md; do
+    [ -e "$scanned" ] || continue
+    scanned_base="$(basename "$scanned")"
+    case "$scanned_base" in
+      index.md|*.[0-9].md|*.[0-9][0-9].md) continue ;;
+    esac
+    head_part="${scanned_base%%-*}"
+    case "$scanned_base" in
+      [0-9]*-*)
+        case "$head_part" in
+          *[!0-9]*) continue ;;
+        esac
+        num=$((10#$head_part))
+        [ "$num" -ge "$bare_next" ] && bare_next=$((num + 1))
+        [ "${#head_part}" -gt "$bare_width" ] && bare_width="${#head_part}"
+        bare_found=1
+        ;;
+      [A-Za-z]*-[0-9]*-*)
+        case "$head_part" in
+          *[!A-Za-z]*) continue ;;
+        esac
+        num_part="${scanned_base#*-}"
+        num_part="${num_part%%-*}"
+        case "$num_part" in
+          ''|*[!0-9]*) continue ;;
+        esac
+        if [ -z "$pref_word" ]; then
+          pref_word="$head_part"
+        elif [ "$pref_word" != "$head_part" ]; then
+          pref_mixed=1
+        fi
+        num=$((10#$num_part))
+        [ "$num" -ge "$pref_next" ] && pref_next=$((num + 1))
+        [ "${#num_part}" -gt "$pref_width" ] && pref_width="${#num_part}"
+        ;;
+    esac
+  done
 }
 
 new_adr() {
@@ -380,22 +533,36 @@ new_adr() {
   shift
   title="${*:-$(title_from_slug "$slug")}"
 
-  adr_dir="$ROOT/docs/adr"
+  adr_dir="$ROOT/$ADR_DIR"
   [ -d "$adr_dir" ] || {
-    printf 'No docs/adr/ directory found. Bootstrap the docs tree first.\n' >&2
+    printf 'No %s/ directory found. Bootstrap the docs tree first.\n' "$ADR_DIR" >&2
     return 1
   }
 
-  next=1
-  for existing in "$adr_dir"/[0-9][0-9][0-9][0-9]-*.md; do
-    [ -e "$existing" ] || continue
-    num="$(basename "$existing" | cut -c1-4 | sed 's/^0*//')"
-    [ -n "$num" ] || num=0
-    [ "$num" -ge "$next" ] && next=$((num + 1))
-  done
-  number="$(printf '%04d' "$next")"
+  # Follow whatever numbering already exists: next = highest number + 1, and
+  # the zero-pad width matches the widest existing prefix (so a repo with
+  # 001-*.md ADRs gets 017-, not 0001-). Bare-numeric names take precedence;
+  # a sole alpha-prefixed convention (adr-0001-*) is continued as
+  # adr-0011-<slug>.md (ADR 0019). Four digits when the directory holds no
+  # numbered ADRs yet.
+  scan_numbering "$adr_dir"
+  name_prefix=""
+  if [ "$bare_found" -eq 1 ]; then
+    next="$bare_next"
+    width="$bare_width"
+  elif [ -n "$pref_word" ] && [ "$pref_mixed" -eq 0 ]; then
+    name_prefix="$pref_word-"
+    next="$pref_next"
+    width="$pref_width"
+  else
+    next=1
+    width=4
+  fi
+  [ "$width" -gt 0 ] || width=4
+  number="$(printf "%0${width}d" "$next")"
+  adr_name="$name_prefix$number-$slug.md"
 
-  out="$adr_dir/$number-$slug.md"
+  out="$adr_dir/$adr_name"
   [ ! -e "$out" ] || {
     printf 'Refusing to overwrite existing file: %s\n' "${out#"$ROOT"/}" >&2
     return 1
@@ -437,10 +604,13 @@ Proposed (authored per the decision policy; awaiting owner review)
 [The observable condition under which this decision gets reverted or reopened, and what reverting takes.]
 ADR
 
-  index_append "$adr_dir/index.md" "# ADRs" "- [$number $title]($number-$slug.md): [one-line description]"
-
   printf 'Wrote %s (status: proposed)\n' "${out#"$ROOT"/}"
-  printf 'Indexed in %s\n' "docs/adr/index.md"
+  if index_append "$adr_dir/index.md" "# ADRs" "- [$number $title]($adr_name): [one-line description]"; then
+    printf 'Indexed in %s\n' "$ADR_DIR/index.md"
+  else
+    printf '%s/index.md uses a table layout; add the entry there by hand (ADR 0019):\n' "$ADR_DIR"
+    printf '  [%s %s](%s)\n' "$number" "$title" "$adr_name"
+  fi
   printf 'Fill every bracket, replace the index description, and flag the ADR in docs/log.md.\n'
 }
 
@@ -453,13 +623,23 @@ new_spec() {
   shift
   title="${*:-$(title_from_slug "$slug")}"
 
-  spec_dir="$ROOT/docs/specs"
+  spec_dir="$ROOT/$SPECS_DIR"
   [ -d "$spec_dir" ] || {
-    printf 'No docs/specs/ directory found. Bootstrap the docs tree first.\n' >&2
+    printf 'No %s/ directory found. Bootstrap the docs tree first.\n' "$SPECS_DIR" >&2
     return 1
   }
 
-  out="$spec_dir/$slug.md"
+  # Follow an alpha-prefixed ID sequence (spec-000-*) when it is the sole
+  # convention in the spec home (ADR 0019). Bare-numeric chapter names
+  # (01-overview.md) are deliberately not followed: chapter position is an
+  # editorial decision, so those repos keep plain <slug>.md.
+  scan_numbering "$spec_dir"
+  spec_name="$slug.md"
+  if [ "$bare_found" -eq 0 ] && [ -n "$pref_word" ] && [ "$pref_mixed" -eq 0 ]; then
+    spec_name="$pref_word-$(printf "%0${pref_width}d" "$pref_next")-$slug.md"
+  fi
+
+  out="$spec_dir/$spec_name"
   [ ! -e "$out" ] || {
     printf 'Refusing to overwrite existing file: %s\n' "${out#"$ROOT"/}" >&2
     return 1
@@ -488,17 +668,37 @@ timestamp: $timestamp
 [How conformance is checked: the automated tests that cover it, and any manual checks with their steps.]
 SPEC
 
-  index_append "$spec_dir/index.md" "# Specs" "- [$title]($slug.md): [one-line description]"
-
   printf 'Wrote %s\n' "${out#"$ROOT"/}"
-  printf 'Indexed in %s\n' "docs/specs/index.md"
+  if index_append "$spec_dir/index.md" "# Specs" "- [$title]($spec_name): [one-line description]"; then
+    printf 'Indexed in %s\n' "$SPECS_DIR/index.md"
+  else
+    printf '%s/index.md uses a table layout; add the entry there by hand (ADR 0019):\n' "$SPECS_DIR"
+    printf '  [%s](%s)\n' "$title" "$spec_name"
+  fi
   printf 'Fill every bracket, replace the index description, and map the governed source in docs/okf-map.yml.\n'
 }
 
+# Tolerant ADR status detection (ADR 0018): frontmatter `status:` first, then
+# the body conventions brownfield repos actually use — a `- Status: X` bullet
+# or a `# Status` / `## Status` heading followed by the status word.
+# Normalized to the lowercased first word so `Accepted (2026-07-12)` reads as
+# `accepted`.
+adr_status_of() {
+  adr_file="$1"
+  raw_status="$(grep -m1 -E '^status:' "$adr_file" 2>/dev/null | sed -E 's/^status:[[:space:]]*//; s/[[:space:]]+$//')"
+  if [ -z "$raw_status" ]; then
+    raw_status="$(grep -m1 -E '^[-*][[:space:]]*[Ss]tatus:' "$adr_file" 2>/dev/null | sed -E 's/^[-*][[:space:]]*[Ss]tatus:[[:space:]]*//; s/[[:space:]]+$//')"
+  fi
+  if [ -z "$raw_status" ]; then
+    raw_status="$(awk 'found && NF { print; exit } /^#+[[:space:]]*[Ss]tatus[[:space:]]*$/ { found = 1 }' "$adr_file" 2>/dev/null)"
+  fi
+  printf '%s' "$raw_status" | awk '{ print tolower($1) }' | sed -E 's/[^a-z]+$//'
+}
+
 pending() {
-  adr_dir="$ROOT/docs/adr"
+  adr_dir="$ROOT/$ADR_DIR"
   [ -d "$adr_dir" ] || {
-    printf 'No docs/adr/ directory found.\n'
+    printf 'No %s/ directory found.\n' "$ADR_DIR"
     return 0
   }
 
@@ -511,11 +711,14 @@ pending() {
       *.[0-9].md|*.[0-9][0-9].md) continue ;;
     esac
     rel="${adr#"$ROOT"/}"
-    status="$(grep -m1 -E '^status:' "$adr" | sed -E 's/^status:[[:space:]]*//; s/[[:space:]]+$//')"
+    status="$(adr_status_of "$adr")"
     if [ -z "$status" ]; then
       missing="${missing}- ${rel}"$'\n'
     elif [ "$status" = "proposed" ]; then
       title="$(grep -m1 -E '^title:' "$adr" | sed -E 's/^title:[[:space:]]*//')"
+      if [ -z "$title" ]; then
+        title="$(grep -m1 -E '^#[[:space:]]' "$adr" | sed -E 's/^#[[:space:]]+//; s/[[:space:]]+$//')"
+      fi
       proposed="${proposed}- ${rel} — ${title:-(untitled)}"$'\n'
     fi
   done
@@ -529,7 +732,8 @@ pending() {
   fi
 
   if [ -n "$missing" ]; then
-    printf '\nADRs with no status field (invisible to this scan — add one):\n'
+    printf '\nADRs with no status field in any recognized form (frontmatter status:,\n'
+    printf 'a "- Status:" bullet, or a "# Status" section) — add frontmatter status:\n'
     printf '%s' "$missing"
   fi
 }

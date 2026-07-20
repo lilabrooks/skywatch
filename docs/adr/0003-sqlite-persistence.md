@@ -4,12 +4,12 @@ title: SQLite persistence layout and migrations
 description: Single SQLite file at DB_PATH, WAL mode, PRAGMA user_version migrations in code; passes replaced-from-now on successful fetch, forecasts upserted per hour, cycles audited.
 tags: [adr]
 timestamp: 2026-07-10T23:49:31Z
-status: proposed
+status: accepted
 ---
 
 # Status
 
-Proposed (authored per the decision policy; awaiting owner review)
+Accepted (2026-07-19, by the owner)
 
 # Context
 

@@ -4,12 +4,12 @@ title: SMTP digest transport, gating, and test layers
 description: smtplib transport behind a Notifier seam; credentials env-only and never in repr; default port 1025 targets a local sink; real sends owner-gated by configuration; four test layers.
 tags: [adr]
 timestamp: 2026-07-11T00:11:34Z
-status: proposed
+status: accepted
 ---
 
 # Status
 
-Proposed (authored per the decision policy; awaiting owner review)
+Accepted (2026-07-19, by the owner)
 
 # Context
 

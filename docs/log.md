@@ -1,5 +1,47 @@
 # Log
 
+## 2026-07-19
+
+- Kit upgrade 0.1.1 → 0.3.6 via the safe updater, following the repo-pulse
+  run earlier today (same pre-manifest path; the classifier race that run
+  exposed was already fixed in kit 0.3.6 before this one). What landed:
+  `.codex/hooks` declared in a new top-level `mirrors:` list in
+  `docs/okf-map.yml` (kit ADR 0021) so the updater now syncs the Codex hook
+  mirrors mechanically — retiring the manual sync-the-other-copy convention
+  this repo's playbooks carried; both hook pairs and `scripts/okf` adopted
+  from kit candidates after verifying our 2026-07-11 local hook hardening
+  was fully absorbed upstream (kit 0.1.2's shipped-hook union; the
+  playbook-wording fix included) with mirrors confirmed byte-identical; the
+  six `okf-*` skills installed; `docs/index.md` restamped in place; and the
+  provenance manifest seeded so future upgrades refresh unedited kit files
+  in place. `CLAUDE.md` rebuilt from the kit 0.3.6 template carrying this
+  repo's master objective, verification commands, and the Codex-stack
+  bullet (now citing the `mirrors:` declaration); `AGENTS.md` rebuilt from
+  it through this repo's established transform — the Session-start reads
+  section, Codex hook bullets, and honest policy-only guardrail wording all
+  preserved verbatim, with the new second-agent paragraph reframed as this
+  port itself. New `tests/test_agent_parity.py` (unittest, skipped when the
+  Codex stack is absent) guards hook-mirror byte-parity and `hooks.json`
+  wiring. The `docs/okf-map.2.yml` starter candidate was dropped (our map
+  carries real mappings plus the declaration). Verified: `make test` green
+  (156 tests including the two new parity guards), `bash scripts/okf
+  check-stale` current, kit `verify-install` passed with zero warnings, and
+  the SessionStart hook is fully silent — no drift, no advisories, and an
+  empty ADR inbox after today's acceptances.
+
+## 2026-07-19
+
+- ADRs 0001-0004 accepted by the owner: flipped `status: proposed` to
+  `accepted` in each frontmatter and body Status section (Python
+  stdlib-only stack; sat.terrestre.ar and Open-Meteo upstream sources;
+  SQLite persistence layout and migrations; SMTP digest transport,
+  gating, and test layers), removed the "(proposed)" markers from
+  `docs/adr/index.md`, and updated the current-state line in `CLAUDE.md`
+  and `AGENTS.md`. All four were implemented and verified when the goal
+  was met on 2026-07-11, so no implementation change was needed — the
+  decisions now bind future work. `bash scripts/okf pending` reports an
+  empty review inbox. Docs-only change; no code or behavior touched.
+
 ## 2026-07-11
 
 - Hook audit (both agents), clean bill plus one wording fix. Reviewed and exercised `.claude`/`.codex` hooks end to end in a scratch clone: bash -n and shellcheck clean; mirrors byte-identical; docs-sync silent on a clean tree and on agent-config-only changes, blocks (valid JSON) on modified *and* untracked code without docs, delegates correctly to `scripts/okf check-stale` (a `docs/log.md` change legitimately satisfies the rationale rule — verified in the okf source — and a stale mapping produces the okf block JSON); both env-var forms work from a foreign cwd and the no-var/foreign-cwd case degrades to a safe silent no-op. Version hook: silent when versions match and when offline (curl shimmed to fail), emits valid drift JSON on doctored versions, survives a missing `docs/index.md`. No concurrency conflicts possible: both hooks are read-only (git reads, greps, curl), no temp files or locks, and each agent's wiring points only at its own copies. One defect found and fixed: hook messages said "per the CLAUDE.md workflow", which is wrong guidance inside a Codex session — both now say "the repo playbook (CLAUDE.md / AGENTS.md)", mirrors re-synced.
